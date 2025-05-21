@@ -1,0 +1,146 @@
+---
+title: "LAB5"
+author: "Harlee Ramos"
+date: "2025-03-28"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+## 5.3.1 The Validation Set Approach
+```{r setup}
+library(ISLR2)
+set.seed(1)
+train <- sample(392,196) #This function sample() splits the set of observations into two halves.
+```
+
+```{r}
+lm.fit <-lm(mpg ~ horsepower, data = Auto, subset=train)
+attach(Auto)
+
+#The -train index selects only the observations that are not in the training set.
+mean((mpg - predict(lm.fit,Auto))[-train]^2)
+```
+
+```{r}
+#We can use the poly() function to estimate the test error for the quadratic and cubic regressions.
+
+#Set a fit 2
+lm.fit2 <- lm(mpg ~ poly(horsepower,2),data = Auto, subset=train)
+mean((mpg-predict(lm.fit2,Auto))[-train]^2)
+
+#Set a fit 3
+lm.fit3 <- lm(mpg ~ poly(horsepower,3),data = Auto, subset=train)
+mean((mpg-predict(lm.fit3,Auto))[-train]^2)
+```
+
+
+```{r}
+set.seed(2) #Changing the seed to 2
+train <- sample(392,196)
+
+#Fitting the regression
+lm.fit <-lm(mpg ~ horsepower, data = Auto, subset=train)
+mean((mpg-predict(lm.fit,Auto))[-train]^2)
+
+lm.fit2 <- lm(mpg ~ poly(horsepower,2),data = Auto, subset=train)
+mean((mpg-predict(lm.fit2,Auto))[-train]^2)
+
+#Set a fit 3
+lm.fit3 <- lm(mpg ~ poly(horsepower,3),data = Auto, subset=train)
+mean((mpg-predict(lm.fit3,Auto))[-train]^2)
+```
+
+##5.3.2 Leave-One-Out Cross-Validation
+```{r}
+#We use the  glm() function to perform logistic regression by passing in the family 'binomial'
+glm.fit <- glm(mpg~ horsepower,data=Auto)
+coef(glm.fit)
+```
+
+```{r}
+library(boot)
+glm.fit <-glm(mpg~ horsepower,data=Auto)
+cv.err<-cv.glm(Auto,glm.fit)
+cv.err$delta
+```
+
+```{r}
+set.seed(17)
+cv.error.10 <-rep(0,10)
+for (i in 1:10){
+  glm.fit <-  glm(mpg~ poly(horsepower,i),data = Auto)
+  cv.error.10[i] <- cv.glm(Auto,glm.fit,K=10)$delta[1]
+}
+cv.error.10
+```
+
+
+##Bootstrap
+```{r}
+alpha.fn <-function(data,index){
+  X <-data$X[index]
+  Y <-data$Y[index]
+  
+  (var(Y)-cov(X,Y))/(var(X)+var(Y)-2*cov(X,Y))
+}
+
+alpha.fn(Portfolio,1:100) #The Portfolio data set in the ISLR2 
+```
+
+
+```{r}
+#The function, alpha.fn(), which takes as input the (X, Y ) data as well as a vector indicating which observations should be used to estimate α. The function then outputs the estimate for α based on the selected observations.
+set.seed(1)
+alpha.fn(Portfolio,sample(100,100,replace=T))
+```
+
+```{r}
+#Ordinary Non-parametric Bootstrap
+boot(Portfolio,alpha.fn,R=1000)
+
+```
+
+```{r}
+boot.fn <-function(data,index)+coef(lm(mpg~ horsepower,data=data,subset=index))
+boot.fn(Auto,1:392)
+```
+
+
+
+```{r}
+set.seed(1)
+boot.fn(Auto,sample(392,392,replace = T))
+```
+
+
+```{r}
+boot.fn(Auto,sample(392,392,replace = T))
+```
+
+
+```{r}
+#Ordinary Non-parametric Bootstrap
+boot(Auto,boot.fn,1000)
+```
+
+```{r}
+summary(lm(mpg~ horsepower,data=Auto))$coef
+```
+
+
+```{r}
+#Alternative approach to perform Bootstrapping
+boot.fn <-function(data,index)+
+  coef(lm(mpg~ horsepower + I(horsepower^2),
+          data=data,subset=index))
+
+set.seed(1)
+boot(Auto,boot.fn,1000)
+
+
+summary(
+  lm(mpg~ horsepower + I(horsepower^2),
+      data=Auto))$coef
+
+```

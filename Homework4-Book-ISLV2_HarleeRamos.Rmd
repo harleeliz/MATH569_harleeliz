@@ -1,0 +1,209 @@
+---
+title: "Homework N#4 Statistical Learning (MATH-569)"
+author: "Harlee Ramos"
+date: "2025-04-29"
+output:
+  pdf_document:
+    latex_engine: lualatex
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+# Libraries
+library(ggplot2)
+library(dplyr)
+library(ISLR2)
+library(MASS)
+library(class)
+library(e1071)
+
+# Color palette for project
+my_palette <- c(
+  "#00A5E3", "#8DD7BF", "#FF96C5", "#FF5768",
+  "#FFBF65", "#8E4585", "#E77577", "#6C88C4"
+)
+```
+
+## Book: ISLR2 (Chapter 4)
+
+## **13. This question should be answered using the `Weekly` data set, which is part of the ISLR2 package. This data is similar in nature to the `Smarket` data from this chapter’s lab, except that it contains 1,089 weekly returns for 21 years, from the beginning of 1990 to the end of 2010.**
+
+### **(a) Produce some numerical and graphical summaries of the `Weekly` data. Do there appear to be any patterns?**
+
+We first inspect the structure and summary statistics of the data, and then create a few plots to look for patterns:
+
+```{r a-summary, echo=TRUE}
+# Numerical summaries
+str(Weekly)
+summary(Weekly)
+
+# Histogram of Volume
+ggplot(Weekly, aes(x = Volume)) +
+  geom_histogram(bins = 30, fill = my_palette[1], color = "white") +
+  labs(title = "Histogram of Weekly Volume", x = "Volume", y = "Frequency")
+
+# Scatterplot of Lag1 vs. Lag2 colored by Direction
+ggplot(Weekly, aes(x = Lag1, y = Lag2, color = Direction)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(values = my_palette[c(3,6)]) +
+  labs(title = "Lag1 vs. Lag2 by Market Direction")
+
+# Time series of Volume over Years
+ggplot(Weekly, aes(x = Year + (1: nrow(Weekly))/52, y = Volume)) +
+  geom_line(color = my_palette[5]) +
+  labs(title = "Weekly Volume Over Time", x = "Year", y = "Volume")
+```
+
+**Observations:**
+- The mean of the lag variables is near zero, with similar variance across weeks.
+- Volume exhibits a clear upward trend over time.
+- There is no strong separation between `Up` and `Down` weeks in the Lag1 vs. Lag2 scatterplot.
+
+### **(b) Use the full data set to perform a logistic regression with `Direction` as the response and the five lag variables plus `Volume` as predictors. Use the `summary` function to print the results. Do any of the predictors appear to be statistically significant? If so, which ones?**
+
+```{r b-logistic-full, echo=TRUE}
+# Logistic regression on full data
+glm_full <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,
+                data = Weekly, family = binomial)
+summary(glm_full)
+```
+
+From the summary, only **Lag2** appears to be statistically significant at the 5% level (p-value < 0.05), with a small negative coefficient.
+
+### **(c) Compute the confusion matrix and overall fraction of correct predictions. Explain what the confusion matrix is telling you about the types of mistakes made by logistic regression.**
+
+```{r c-confusion-full, echo=TRUE}
+# Predicted probabilities and classes
+probs_full <- predict(glm_full, type = "response")
+pred_full <- ifelse(probs_full > 0.5, "Up", "Down")
+
+# Confusion matrix
+conf_full <- table(Predicted = pred_full, Actual = Weekly$Direction)
+conf_full
+
+# Overall accuracy
+accuracy_full <- mean(pred_full == Weekly$Direction)
+accuracy_full
+```
+
+**Interpretation:**
+- The model correctly predicts approximately `r round(accuracy_full * 100, 1)`% of weeks.
+- The confusion matrix shows whether the model tends to make more false positives (`Down` predicted as `Up`) or false negatives (`Up` predicted as `Down`).
+
+### **(d) Now fit the logistic regression model using a training data period from 1990 to 2008, with `Lag2` as the only predictor. Compute the confusion matrix and the overall fraction of correct predictions for the held out data (that is, the data from 2009 and 2010).**
+
+```{r d-logistic-train, echo=TRUE}
+# Split data into training and test sets
+tidx <- Weekly$Year <= 2008
+
+# Fit model on training data
+glm_lag2 <- glm(Direction ~ Lag2, data = Weekly, family = binomial, subset = tidx)
+
+# Predict on test data
+probs_lag2 <- predict(glm_lag2, Weekly[!tidx, ], type = "response")
+pred_lag2 <- ifelse(probs_lag2 > 0.5, "Up", "Down")
+
+# Confusion matrix and accuracy on test set
+test_conf_lag2 <- table(Predicted = pred_lag2, Actual = Weekly$Direction[!tidx])
+test_conf_lag2
+
+test_acc_lag2 <- mean(pred_lag2 == Weekly$Direction[!tidx])
+test_acc_lag2
+```
+
+### **(e) Repeat (d) using LDA.**
+
+```{r e-lda, echo=TRUE}
+# LDA on Lag2
+lda_lag2 <- lda(Direction ~ Lag2, data = Weekly, subset = tidx)
+lda_pred <- predict(lda_lag2, Weekly[!tidx, ])
+
+# Confusion matrix and accuracy for LDA
+conf_lda <- table(Predicted = lda_pred$class, Actual = Weekly$Direction[!tidx])
+conf_lda
+mean(lda_pred$class == Weekly$Direction[!tidx])
+```
+
+### **(f) Repeat (d) using QDA.**
+
+```{r f-qda, echo=TRUE}
+# QDA on Lag2
+qda_lag2 <- qda(Direction ~ Lag2, data = Weekly, subset = tidx)
+qda_pred <- predict(qda_lag2, Weekly[!tidx, ])
+
+# Confusion matrix and accuracy for QDA
+conf_qda <- table(Predicted = qda_pred$class, Actual = Weekly$Direction[!tidx])
+conf_qda
+mean(qda_pred$class == Weekly$Direction[!tidx])
+```
+
+### **(g) Repeat (d) using KNN with K = 1.**
+
+```{r g-knn, echo=TRUE}
+# Prepare data for KNN
+train_X <- as.matrix(Weekly$Lag2[tidx])
+test_X  <- as.matrix(Weekly$Lag2[!tidx])
+train_Y <- Weekly$Direction[tidx]
+
+# K = 1
+knn_pred1 <- knn(train = train_X, test = test_X, cl = train_Y, k = 1)
+
+# Confusion matrix and accuracy for KNN (K=1)
+conf_knn1 <- table(Predicted = knn_pred1, Actual = Weekly$Direction[!tidx])
+conf_knn1
+mean(knn_pred1 == Weekly$Direction[!tidx])
+```
+
+### **(h) Repeat (d) using naive Bayes.**
+
+```{r h-naivebayes, echo=TRUE}
+# Naive Bayes on Lag2
+nb_lag2 <- naiveBayes(Direction ~ Lag2, data = Weekly, subset = tidx)
+bayes_pred <- predict(nb_lag2, Weekly[!tidx, ])
+
+# Confusion matrix and accuracy for Naive Bayes
+conf_nb <- table(Predicted = bayes_pred, Actual = Weekly$Direction[!tidx])
+conf_nb
+mean(bayes_pred == Weekly$Direction[!tidx])
+```
+
+### **(i) Which of these methods appears to provide the best results on this data?**
+
+Based on the held‑out accuracies:
+
+- Logistic (Lag2): `r round(test_acc_lag2 * 100, 1)`%
+- LDA: `r round(mean(lda_pred$class == Weekly$Direction[!tidx]) * 100, 1)`%
+- QDA: `r round(mean(qda_pred$class == Weekly$Direction[!tidx]) * 100, 1)`%
+- KNN (K=1): `r round(mean(knn_pred1 == Weekly$Direction[!tidx]) * 100, 1)`%
+- Naive Bayes: `r round(mean(bayes_pred == Weekly$Direction[!tidx]) * 100, 1)`%
+
+**Conclusion:** LDA appears to provide the best classification accuracy on the 2009–2010 data.
+
+### **(j) Experiment with different combinations of predictors, including possible transformations and interactions, for each of the methods. Report the variables, method, and associated confusion matrix that appears to provide the best results on the held out data. Note that you should also experiment with values for K in the KNN classifier.**
+
+As an example, we try logistic regression with `Lag1 + Lag2` and KNN with `K = 5`:
+
+```{r j-experiments, echo=TRUE}
+# Logistic with Lag1 + Lag2
+glm_two <- glm(Direction ~ Lag1 + Lag2, data = Weekly, family = binomial, subset = tidx)
+prob_two <- predict(glm_two, Weekly[!tidx, ], type = "response")
+pred_two <- ifelse(prob_two > 0.5, "Up", "Down")
+conf_two <- table(Predicted = pred_two, Actual = Weekly$Direction[!tidx])
+acc_two <- mean(pred_two == Weekly$Direction[!tidx])
+
+# KNN with K = 5 using Lag1 and Lag2
+train_mat <- as.matrix(Weekly[tidx, c("Lag1","Lag2")])
+test_mat  <- as.matrix(Weekly[!tidx, c("Lag1","Lag2")])
+knn_pred5 <- knn(train = train_mat, test = test_mat, cl = train_Y, k = 5)
+conf_knn5 <- table(Predicted = knn_pred5, Actual = Weekly$Direction[!tidx])
+acc_knn5 <- mean(knn_pred5 == Weekly$Direction[!tidx])
+
+# Display results
+conf_two
+acc_two
+conf_knn5
+acc_knn5
+```
+
+Among these experiments, logistic regression with `Lag1 + Lag2` achieved `r round(acc_two * 100, 1)`% accuracy, and KNN with `K = 5` on `Lag1` and `Lag2` achieved `r round(acc_knn5 * 100, 1)`% accuracy. The logistic model remains the best among considered variations.

@@ -1,0 +1,408 @@
+---
+title: "Homework N#1 Statistical Learning (MATH-569)"
+author: "Harlee Ramos"
+date: "2025-02-11"
+output:
+  html_document:
+    df_print: paged
+  pdf_document:
+    latex_engine: xelatex
+---
+## Book: ISLR (Chapter 2)
+```{r setup, include=FALSE}
+# Load necessary libraries
+library(knitr)
+library(kableExtra)
+library(ISLR2)
+library(GGally)
+library(ggplot2)
+library(MASS)
+library(dplyr)
+library(gridExtra)
+library(corrplot)
+set.seed(123) # Ensure reproducibility
+```
+## <span style="color:blue;">10. This exercise involves the Boston housing dataset.</span> <br>
+### **(a) To begin, load the Boston dataset. The Boston dataset is part of the** **ISLR2** **library.**
+
+<ul>
+    <li>The Boston dataset is part of the <strong>ISLR2</strong> library.</li>
+</ul>
+
+**How many rows are in this dataset? How many columns? What do the rows and columns represent?**
+    <ul>
+        <li><strong>Rows:</strong> 506</li>
+        <li><strong>Columns:</strong> 13</li>
+        <li><strong>Description of Columns:</strong></li>
+    </ul>
+</ul>
+	1.	crim: Per capita crime rate by town.
+	2.	zn: Proportion of residential land zoned for lots over 25,000 sq.ft.
+	3.	indus: Proportion of non-retail business acres per town.
+	4.	chas: Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).
+	5.	nox: Nitrogen oxides concentration (parts per 10 million).
+	6.	rm: Average number of rooms per dwelling.
+	7.	age: Proportion of owner-occupied units built prior to 1940.
+	8.	dis: Weighted mean of distances to five Boston employment centers.
+	9.	rad: Index of accessibility to radial highways.
+	10.	tax: Full-value property-tax rate per $10,000.
+	11.	ptratio: Pupil-teacher ratio by town.
+	12.	lstat: Lower status of the population (percent).
+	13.	medv: Median value of owner-occupied homes in $1000s.
+
+### **(b) Make some pairwise scatterplots of the predictors (columns) in this data set. Describe your findings.**
+```{r,  fig.width=30, fig.height=30}
+# Adjust text size for labels and titles
+par(cex = 3,      # Increases overall text size
+    cex.axis = 1.5,   # Axis text size
+    cex.lab = 1.5,  # Label text size
+    cex.main = 3) # Title text size
+pairs(Boston,main = "Pairwise Scatter Plot Matrix - Boston Dataset",
+      col = "red",pch = 15,)
+```
+
+```{r,fig.width=20, fig.height=20}
+# Filter the Boston dataset to exclude the categorical variable 'chas'
+boston_data <- Boston[, !names(Boston) %in% "chas"]
+
+# Create a custom correlation function for clean formatting
+custom_cor <- function(data, mapping, ...) {
+  # Extract the variables
+  x <- eval_data_col(data, mapping$x)
+  y <- eval_data_col(data, mapping$y)
+  # Calculate correlation
+  corr <- cor(x, y, use = "complete.obs")
+  # Display only the correlation value (rounded to 2 decimals)
+  ggally_text(
+    label = paste0(round(corr, 2)), # Round and convert to string
+    mapping = mapping,
+    ...
+  )
+}
+# Create the scatterplot matrix with the customized correlation
+ggpairs(
+  boston_data,
+  upper = list(continuous = wrap(custom_cor, size = 6,
+                                 color = "black")), # Custom correlation function
+  lower = list(continuous = wrap("smooth", 
+                                 alpha = 0.6, color = "red")), # Add smoothed scatterplots
+  diag = list(continuous = wrap("barDiag", fill = "pink",
+                                alpha = 0.7, bins = 20)), # Specify number of bins
+  title = "Correlation Matrix of Boston Housing Dataset"
+) +
+  theme_bw(base_size = 15) + # Use a clean theme
+  theme(
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14)
+  )
+```
+<p style="color: blue;"> Analysis: </p> 
+#### **Distribution Insights**
+- **Skewed Variables:**  Variables like `crim` are heavily right-skewed, with most observations near zero and a few extreme outliers.
+- **Discrete/Clustered Values:**  
+  - `zn` (large-lot zoning proportion) has many zeros, indicating towns with no zoning for large lots.
+  - `rad` (highway accessibility) and `tax` (property tax rate) have distinct clusters due to their discrete value distributions.
+
+#### **Strong or Notable Linear Relationships**
+1. **`indus` vs. `nox` [0.76]:**  Strong positive correlation. Higher industrial activity aligns with increased pollution levels, as expected in industrialized zones.  
+
+2. **`rm` vs. `medv` [0.70]:**  Strong positive correlation. Larger homes (more rooms) align with higher median home values, suggesting a link between housing quality and property values.  
+
+3. **`lstat` vs. `medv` [-0.74]:**  Strong negative correlation. Higher proportions of low-status residents correlate with lower home values, reinforcing socioeconomic disparities.
+
+4. **`rad` vs. `tax` [0.91]:**  Extremely strong positive correlation. Areas with better highway access often have higher property tax rates, possibly reflecting urban commercial development.
+
+#### **Moderate or Weaker Patterns**
+1. **`dis` vs. `nox` [-0.77]:**  Strong inverse relationship. Neighborhoods farther from downtown areas tend to have lower pollution levels, reflecting suburban or rural settings.  
+
+2. **`ptratio` vs. `medv` [-0.51]:**  Moderate negative correlation. Higher pupil-teacher ratios (an indicator of lower school quality) correspond with lower property values.
+
+3. **`zn` vs. `indus` [-0.53]:**  Moderate negative correlation. Areas with zoning for large residential lots typically have less industrial land use.
+
+#### **Outliers and Clusters**
+- **`crim` (crime rate)** has a few extreme values, forming noticeable outliers in scatterplots against other predictors.  
+- **`tax` (property tax rate)** creates vertical clusters in scatterplots due to its discrete nature.  
+- **`zn`** has many observations at zero, which may impact its correlations with urban-related metrics like `indus`.
+
+####  **Key Drivers of Home Value (`medv`):**  
+  - Positive: `rm` (larger homes)  
+  - Negative: `lstat` (lower-status residents), `ptratio` (higher class sizes)  
+- **Urbanization Indicators:**  
+  - Strong ties between `rad`, `tax`, `indus`, and `nox` highlight urban density and industrialization trends.  
+- **Suburban/Rural Indicators:**  
+  - `dis` (distance from employment centers) and `zn` (large-lot zoning) reflect less urbanized locales with cleaner air (low `nox`).  
+
+
+### **(c) Are any of the predictors associated with per capita crime rate? If so, explain the relationship.**
+<p style="color: blue;"> Analysis: </p>
+The predictors with the strongest associations to crime per capita are `rad` (highway accessibility) and `tax` (property tax rates), highlighting urbanization and economic factors as critical drivers of crime. Moderate correlations like `nox` (pollution levels) and `medv` (home values) provide additional socio-environmental context. Weak correlations such as `ptratio`, `rm`, and `zn` offer insights into more subtle trends, suggesting that crime rates are multifaceted and influenced by both environmental and socioeconomic variables.
+
+#### Positive Correlation
+- **Strong (Correlation > 0.7):**  
+  - **`rad` [0.63]:** Areas with better access to highways have significantly higher crime rates.  
+  - **`tax` [0.58]:** Higher property tax rates correlate with higher crime rates.  
+
+- **Moderate (0.3 ≤ Correlation ≤ 0.7):**  
+  - **`nox` [0.42]:** Pollution levels are moderately associated with higher crime rates.  
+  - **`indus` [0.41]:** Industrialized areas tend to have higher crime rates.  
+
+- **Weak (Correlation < 0.3):**  
+  - **`ptratio` [0.29]:** There is a weak but positive association between higher pupil-teacher ratios and higher crime rates.  
+
+#### Negative Correlation
+- **Moderate (-0.3 ≤ Correlation ≤ -0.7):**  
+  - **`medv` [-0.39]:** Higher home values are linked to lower crime rates.  
+  - **`dis` [-0.38]:** Areas farther from employment centers have lower crime rates.  
+  
+- **Weak (Correlation < -0.3):**  
+  - **`rm` [-0.22]:** Larger homes are slightly associated with lower crime rates.  
+  - **`zn` [-0.20]:** Residentially zoned areas for large lots have slightly lower crime rates.  
+  
+### **(d) Do any of the census tracts of Boston appear to have particularly high crime rates? Tax rates? Pupil-teacher ratios? Comment on the range of each predictor.**
+```{r}
+# Summary statistics for ranges of crim, tax, and ptratio
+compute_stats <- function(x) {
+  c( Min   = min(x), Q1    = quantile(x, 0.25), Median= median(x),
+     Mean  = mean(x), Q3    = quantile(x, 0.75),Max   = max(x), SD    = sd(x)
+  )
+}
+# Compute stats for each variable
+crim_stats    <- compute_stats(Boston$crim)
+tax_stats     <- compute_stats(Boston$tax)
+ptratio_stats <- compute_stats(Boston$ptratio)
+
+# Combine into a data frame
+stats_df <- data.frame( Statistic = names(crim_stats),
+                        CRIM      = crim_stats, TAX       = tax_stats,
+                        PTRATIO   = ptratio_stats,
+  row.names = NULL
+)
+# Display the summary table using kable
+kable(stats_df, caption = "Summary Statistics for CRIM, TAX, and PTRATIO") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+```	
+
+```{r,fig.width=20, fig.height=20}
+# Configure plotting parameters
+par(
+  mfrow = c(3, 1),      # 3 plots in a column
+  mar   = c(5, 5, 4, 2),# Margins: bottom, left, top, right
+  cex   = 1.3,          # Global scaling factor for text and symbols
+  cex.axis = 1.2,       # Axis annotation (tick labels)
+  cex.lab  = 1.3,       # Axis labels
+  cex.main = 1.5        # Main title
+)
+# Boxplot for crim
+boxplot(Boston$crim,  horizontal = TRUE, col = "red", 
+        main = "Crime Rate (crim)",  xlab = "Value")
+# Boxplot for tax
+boxplot(Boston$tax,  horizontal = TRUE, col = "magenta", 
+        main = "Tax Rate (tax)", xlab = "Value")
+# Boxplot for ptratio
+boxplot(Boston$ptratio,  horizontal = TRUE,  col = "purple",
+        main = "Pupil-Teacher Ratio (ptratio)",  xlab = "Value")
+# Reset the plotting layout to default
+par(mfrow = c(1, 1))
+```	
+<p style="color: blue;"> Analysis: </p> 
+**1. Crime Rate (crim):**<br>
+**Range:** The crime rate ranges from a minimum of 0.00632 to a maximum of 88.9762.<br>
+**Observation:** Most census tracts have low crime rates, as shown by the dense cluster of data near the lower values. However, there are a few census tracts with significantly high crime rates, making them outliers.<br>
+**Distribution:** Heavily right-skewed, with most tracts having low crime rates (<1) and a few extreme outliers exceeding 40.<br>
+**Interpretation:** Most neighborhoods are relatively safe, but a small number experience high crime rates, likely reflecting urban or economically challenged areas.
+
+**2. Tax Rate (tax):**<br>
+**Range:** The tax rate varies from 187 to 711.<br>
+**Observation:** A significant number of census tracts have tax rates near the upper end of the range (e.g., tax = 666 or tax = 711), as indicated by the high frequency of these values in the data.<br>
+**Distribution:** Discrete clusters with common tax values (e.g., 187, 222, 666). High-end values like 666 and 711 reflect peak tax rates.<br>
+**Interpretation:** High tax rates may indicate urbanization, strong municipal services, or local tax policies, with noticeable clustering in specific ranges.  <br>
+
+**3. Pupil-Teacher Ratio (ptratio):**<br>
+**Range:** The pupil-teacher ratio ranges from 12.6 to 22.0.<br>
+**Observation:** Higher pupil-teacher ratios (indicating lower education quality) are associated with areas that also have higher crime rates, as shown in the data.<br>
+**Distribution:** Relatively narrow spread, with higher ratios (>20) suggesting larger class sizes and potential resource constraints.<br>
+**Interpretation:** Lower ratios (~12) may reflect wealthier towns with better school funding, while higher ratios indicate constrained educational resources.<br>
+
+### **(e) How many of the census tracts in this data set bound the Charles river?**
+```{r}
+# Calculate the number of tracts adjacent to the Charles River
+charles_river_count <- sum(Boston$chas == 1)
+
+# Total number of census tracts
+total_tracts <- nrow(Boston)
+
+# Percentage of tracts adjacent to the Charles River
+percent_charles <- (charles_river_count / total_tracts) * 100
+
+# Create a data frame summarizing the information
+charles_river_summary <- data.frame(
+  Description = c(
+    "Number of Census Tracts by Charles River",
+    "Total Census Tracts in Boston Dataset",
+    "Percentage of Tracts by Charles River"
+  ),
+  Value = c(
+    charles_river_count,
+    total_tracts,
+    paste0(round(percent_charles, 2), " %")
+  )
+)
+# Display result in a formatted table
+kable(charles_river_summary, 
+      caption = "Summary of Census Tracts Bounding the Charles River") %>%
+  kable_styling(full_width = FALSE)
+```
+<p style="color: blue;"> Analysis: </p>
+  - Out of 506 total census tracts in the dataset, **`r charles_river_count`** tracts bound the Charles River.  
+  - This constitutes approximately `r round(percent_charles, 2)` % of all tracts.  
+In other words, fewer than 1 in 14 census tracts in the Boston area lie directly on the Charles River. This small subset may experience different real-estate values, environmental considerations (e.g., flood risk or river views), and recreational benefits compared to other neighborhoods.
+
+### **(f) What is the median pupil-teacher ratio among the towns in this data set?**
+```{r}
+median_ptratio <- median(Boston$ptratio)
+
+# Display result
+kable(data.frame(
+  Description = "Median Pupil-Teacher Ratio",
+  Value = median_ptratio
+), caption = "Pupil-Teacher Ratio Summary") %>%
+  kable_styling(full_width = FALSE)
+```	
+<p style="color: blue;"> Analysis: </p>
+The median pupil-teacher ratio among all census tracts in this dataset is 19.05. This suggests that in a typical census tract, there are around, 19.05, "students per teacher.Higher pupil-teacher ratios are often associated with lower school quality,which can correlate with economic and social factors in an area.
+
+
+### **(g) Which census tract of Boston has lowest median value of owner-occupied homes? What are the values of the other predictors for that census tract, and how do those values compare to the overall ranges for those predictors? Comment on your findings.**
+
+
+```{r}
+# Identify the row index of the tract with the lowest median value (medv)
+lowest_medv_index <- which.min(Boston$medv)
+
+# Extract that specific row
+lowest_medv_tract <- Boston[lowest_medv_index, ]
+
+# Compute summary statistics for relevant columns (for the entire Boston dataset)
+boston_summary <- Boston %>%
+  summarise(
+    crim_min = min(crim),     crim_mean = mean(crim),     crim_max = max(crim),
+    indus_min = min(indus),   indus_mean = mean(indus),   indus_max = max(indus),
+    nox_min = min(nox),       nox_mean = mean(nox),       nox_max = max(nox),
+    rm_min = min(rm),         rm_mean = mean(rm),         rm_max = max(rm),
+    dis_min = min(dis),       dis_mean = mean(dis),       dis_max = max(dis),
+    ptratio_min = min(ptratio), ptratio_mean = mean(ptratio), ptratio_max = max(ptratio),
+    medv_min = min(medv),     medv_mean = mean(medv),     medv_max = max(medv)
+  )
+
+# Create a table to compare the chosen tract's values to the dataset's min, mean, and max
+compare_df <- data.frame(
+  Variable     = c("crim", "indus", "nox", "rm", "dis", "ptratio", "medv"),
+  ThisTract    = c(lowest_medv_tract$crim, 
+                   lowest_medv_tract$indus, 
+                   lowest_medv_tract$nox, 
+                   lowest_medv_tract$rm, 
+                   lowest_medv_tract$dis, 
+                   lowest_medv_tract$ptratio,
+                   lowest_medv_tract$medv),
+  Min          = c(boston_summary$crim_min, 
+                   boston_summary$indus_min, 
+                   boston_summary$nox_min, 
+                   boston_summary$rm_min, 
+                   boston_summary$dis_min, 
+                   boston_summary$ptratio_min, 
+                   boston_summary$medv_min),
+  Mean         = c(boston_summary$crim_mean, 
+                   boston_summary$indus_mean, 
+                   boston_summary$nox_mean, 
+                   boston_summary$rm_mean, 
+                   boston_summary$dis_mean, 
+                   boston_summary$ptratio_mean, 
+                   boston_summary$medv_mean),
+  Max          = c(boston_summary$crim_max, 
+                   boston_summary$indus_max, 
+                   boston_summary$nox_max, 
+                   boston_summary$rm_max, 
+                   boston_summary$dis_max, 
+                   boston_summary$ptratio_max, 
+                   boston_summary$medv_max)
+)
+
+# Display the tract data and comparison in nicely formatted tables
+kable(lowest_medv_tract, caption = 
+        "Census Tract with Lowest Median Home Value") %>%
+  kable_styling(full_width = FALSE)
+
+kable(compare_df, caption = 
+        "Comparison of Key Predictors for Lowest-Medv Tract vs. Overall Data") %>%
+  kable_styling(full_width = FALSE)
+```	
+
+<p style="color: blue;"> Analysis: </p>
+1. **Census Tract**  
+   - The tract with the **lowest median home value** (`medv`) is identified by `which.min(Boston$medv)`.  
+   - Its **median home value** is **5 (i.e., $5,000)**, much lower than the dataset’s average of about **22.53**.
+
+2. **Key Predictors**  
+   From the comparison table: <br>
+   - **Crime rate (`crim` = 38.35)**  
+     - Very high relative to the dataset’s **mean (3.61)** and almost halfway to the **max (88.98)**.  
+     - Suggests significant safety or socioeconomic challenges.
+
+   - **Proportion of industrial land (`indus` = 18.10)**  
+     - Above the mean **(11.14)**, indicating relatively heavy industrial usage, which can reduce residential appeal and value.
+
+   - **NOx pollution (`nox` = 0.693)**  
+     - Higher than the mean **(0.554)** and near the **max (0.871)**, suggesting elevated environmental concerns.
+
+   - **Rooms per dwelling (`rm` = 5.453)**  
+     - Slightly below the mean **(6.284)**, pointing to smaller homes.
+
+   - **Distance to employment centers (`dis` = 1.4896)**  
+     - Well below the mean **(3.795)**, indicating the tract is relatively close to urban or industrial centers (consistent with higher pollution).
+
+   - **Pupil-teacher ratio (`ptratio` = 20.2)**  
+     - Higher than the mean **(18.46)**, implying somewhat more crowded schools.
+
+3. **Why Is the Median Home Value So Low?**  
+   - **High Crime** and **High Pollution**: Substantially above-average crime rate and NOx levels can deter homebuyers and depress property values.  
+   - **Proximity to Industrial Areas**: The sizeable industrial land share (`indus`) might limit purely residential appeal and drive down home prices.  
+   - **Education Constraints**: A higher pupil-teacher ratio might be a proxy for lower perceived school quality, further impacting desirability.
+
+
+### **(h) In this data set, how many of the census tracts average more than seven rooms per dwelling? More than eight rooms per dwelling? Comment on the census tracts that average more than eight rooms per dwelling.**
+```{r}
+# Calculate counts for RM > 7 and RM > 8
+num_more_than_7 <- sum(Boston$rm > 7)
+num_more_than_8 <- sum(Boston$rm > 8)
+
+# Display counts in a table
+kable(data.frame(
+  Description = c("Census tracts with RM > 7",
+                  "Census tracts with RM > 8"),
+  Count = c(num_more_than_7, num_more_than_8)
+), caption = "Number of Census Tracts with Large Homes") %>%
+  kable_styling(full_width = FALSE)
+
+# Analyze the RM > 8 subset
+larger_homes_subset <- Boston %>%
+  filter(rm > 8) %>%
+  summarise(
+    AvgCrim = round(mean(crim), 2),
+    AvgMedv = round(mean(medv), 2),
+    AvgPTR = round(mean(ptratio), 2),
+    Count = n()
+  )
+# Display summary for RM > 8 subset
+kable(larger_homes_subset, caption = "Key Averages for Tracts with RM > 8") %>%
+  kable_styling(full_width = FALSE)
+```	
+<p style="color: blue;"> Analysis: </p>
+1. **Counts of Census Tracts**  
+   - **RM > 7:** There are 64 census tracts where the average number of rooms per dwelling exceeds 7.
+   - **RM > 8:** A smaller subset of 13 census tracts exceeds 8 rooms on average, indicating homes with particularly spacious designs.
+2. **Characteristics of Tracts with RM > 8**  
+   - **Crime Rate:** These tracts have an average crime rate lower than the citywide mean, indicating safer neighborhoods.
+   - **Median Home Value: **The average home value is significantly higher, reflecting the desirability and exclusivity of these areas.
+   - **Pupil-Teacher Ratio:** Schools in these areas typically have lower pupil-teacher ratios, indicating better-resourced education systems.
+In a nutshell, while 64 tracts exceed 7 rooms per dwelling on average, the 13 tracts surpassing 8 rooms represent highly affluent neighborhoods with distinct advantages in crime, education, and property value. These tracts underline the relationship between housing size and socioeconomic prosperity.

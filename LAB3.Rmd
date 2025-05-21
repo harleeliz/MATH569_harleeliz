@@ -1,0 +1,220 @@
+---
+title: "LAB3"
+author: "Harlee Ramos"
+date: "2025-03-28"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+#### **Load Libraries**
+```{r setup}
+# Load necessary libraries
+library(MASS)
+library(ISLR)
+library(ISLR2)
+library(GGally)
+library(ggplot2)
+library(car)
+
+# Load the Boston dataset
+data(Boston)
+head(Boston)
+
+
+# Setting a color palette for the lab
+my_palette <- c("hotpink", "dodgerblue", "gold", "mediumseagreen", "orchid")
+```
+
+## Plot Boston Dataset
+```{r, fig.width=10, fig.height=10 }
+ggpairs(Boston,
+        lower = list(continuous = wrap("points", col = my_palette[1])),
+        diag = list(continuous = wrap("densityDiag")),
+        upper = list(continuous = wrap("cor", size = 4))) +
+  ggtitle("Scatterplot Matrix for Boston Dataset")
+```
+
+## Fit the linear model
+```{r }
+# Fit the linear model
+Boston.lm.fit <- lm(medv ~ lstat, data=Boston)
+attach(Boston)
+lm.fit <-lm(medv ~ lstat )
+
+
+# Display the summary of the model
+summary(Boston.lm.fit)
+
+#ANOVA
+anova(Boston.lm.fit)
+
+
+# Display the names of the predictor's model
+names(Boston.lm.fit)
+
+# Display the coeficients
+coef(Boston.lm.fit)
+
+#Confidence intervals
+confint(Boston.lm.fit)
+```
+
+## Plot of the linear model
+```{r, fig.width=10, fig.height=5 }
+par(mfrow = c(1, 2))  # 1 row, 2 columns
+
+
+plot(lstat, medv, col = "black", main = "Linear Fit")
+abline(Boston.lm.fit, col = my_palette[1], lwd = 3)
+
+qqnorm(residuals(Boston.lm.fit), col = "black", main = "QQ Plot of Residuals")
+qqline(residuals(Boston.lm.fit), col = my_palette[2], lwd = 2)
+```
+
+## Predict the linear model
+```{r }
+#Confidence
+predict(Boston.lm.fit , data.frame(lstat = (c(5, 10, 15))),interval = "confidence")
+#Prediction
+predict(Boston.lm.fit , data.frame(lstat = (c(5, 10, 15))),interval = "prediction")
+```
+
+## Plot prediction of the linear model
+```{r, fig.width=10, fig.height=5}
+# Set layout for plots
+par(mfrow = c(1, 2))  
+
+# Get residuals
+residuals <- residuals(Boston.lm.fit)
+
+# Plot: Residuals vs Fitted (Linear Fit)
+plot(predict(Boston.lm.fit), residuals, 
+     col = "black", main = "Residuals vs Fitted",
+     xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = my_palette[1], lwd = 2)  # Horizontal reference line
+
+# QQ Plot of Residuals
+qqnorm(residuals, col = "black", main = "QQ Plot of Residuals")
+qqline(residuals, col = my_palette[2], lwd = 2)
+```
+
+```{r, fig.width=10, fig.height=5}
+# Set layout for plots
+par(mfrow = c(1, 2))  
+
+# Residuals vs Fitted again (for clarity)
+plot(predict(Boston.lm.fit), residuals, 
+     col = my_palette[3], main = "Residuals vs Fitted",
+     xlab = "Fitted Values", ylab = "Residuals")
+
+# Normalized (Studentized) Residuals
+plot(predict(Boston.lm.fit), rstudent(Boston.lm.fit), 
+     col = my_palette[4], main = "Studentized Residuals",
+     xlab = "Fitted Values", ylab = "Studentized Residuals")
+
+# Hat values (Leverage)
+plot(hatvalues(Boston.lm.fit), 
+     col = my_palette[5], main = "Leverage (Hat Values)",
+     ylab = "Hat Values", xlab = "Index")
+abline(h = 2 * mean(hatvalues(Boston.lm.fit)), col = "red", lty = 2)
+
+# Index of the most influential observation
+which.max(hatvalues(Boston.lm.fit))
+```
+
+## 3.6.3 Multiple Linear Regression
+```{r }
+# Fit the linear model multiple 1
+Boston.lm.fit.multiple1 <- lm(medv ~ lstat+age, data=Boston)
+summary(Boston.lm.fit.multiple1)
+# Variance Inflation factors
+vif(Boston.lm.fit.multiple1) #multiple1
+```
+
+```{r }
+# Fit the linear model multiple 2
+Boston.lm.fit.multiple2 <- lm(medv ~ ., data=Boston)
+summary(Boston.lm.fit.multiple2)
+# Variance Inflation factors
+vif(Boston.lm.fit.multiple2) #multiple2
+```
+
+
+```{r }
+# Fit the linear model multiple 3
+# In this kind of model we are performing the regression fit using all variables but only one
+Boston.lm.fit.multiple3 <- lm(medv ~ .-age, data=Boston)
+summary(Boston.lm.fit.multiple3)
+# Variance Inflation factors
+vif(Boston.lm.fit.multiple3) #multiple3
+```
+
+
+```{r }
+# Alternatively, use update() to exclude age from the full model
+Boston.lm.fit.multiple3a <- update(Boston.lm.fit.multiple2, ~ . - age)
+summary(Boston.lm.fit.multiple3a)
+# Variance Inflation factors
+vif(Boston.lm.fit.multiple3a) #multiple3a
+```
+
+## 3.6.4 Interaction Terms
+```{r }
+#  In this summary we are setting an iteration term to the Boston Dataset between lstat and age, 
+summary(lm(medv ~ lstat*age, data = Boston))
+```
+
+
+## 3.6.5 Non-linear Transformations of the Predictors
+```{r }
+#Fit the model
+NonLinearT.lm.fit <- lm(medv ~lstat + I(lstat^2))
+summary(NonLinearT.lm.fit)
+```
+
+```{r, fig.width=10, fig.height=10}
+#Analysis of model for improve it 
+anova(Boston.lm.fit,NonLinearT.lm.fit)
+
+
+# Plot of the model with the Non-linear Transformations of the Predictors
+par(mfrow = c(2,2))
+plot(NonLinearT.lm.fit)
+```
+
+
+
+```{r }
+#Creation of a polynomial fit
+Boston.lm.fit.poly <-lm(medv ~  poly(lstat,5))
+summary(Boston.lm.fit.poly)
+
+```
+## 3.6.6 Qualitative Predictors using the Carseats Data set
+```{r }
+head(Carseats)
+Carseats.lm.fit <-lm( Sales ~.+Income:Advertising + Price:Age, data=Carseats  )
+summary(Carseats.lm.fit)
+```
+
+```{r }
+#The contrasts() function returns the coding that R uses for the dummy contrasts() variables.
+attach(Carseats)
+contrasts ( ShelveLoc )
+```
+
+
+#3.6.7 Writing Functions
+```{r }
+LoadLibraries <- function() {
+  library(ISLR2)
+  library(MASS)
+  print("The libraries have been loaded.")
+  #cat("The libraries have been loaded.") Alternative way instead of print use cat
+}
+```
+
+
+
+

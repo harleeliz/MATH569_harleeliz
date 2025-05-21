@@ -1,0 +1,678 @@
+---
+title: "Homework N#3 Statistical Learning (MATH-569)"
+author: "Harlee Ramos"
+date: "2025-04-10"
+output:
+  html_document:
+    df_print: paged
+  pdf_document:
+    latex_engine: lualatex
+---
+
+```{r setup, include=FALSE}
+# Load only the necessary libraries
+library(boot)    # for cv.glm
+library(leaps)   # for regsubsets
+library(knitr)   # for kable
+library(ISLR) # for the Weekly dataset
+library(ggplot2)
+library(GGally)
+library(car)
+library(dplyr)       # For data manipulation
+library(tibble)      # For tibbles
+
+
+# Set a color palette for the lab plots
+my_palette <- c(
+  "#00A5E3",  "#8DD7BF",   "#FF96C5",   "#FF5768", "#FFBF65",   "#8E4585", "#E77577",  "#6C88C4"  )
+```
+
+
+## Book: ISLR2 (Chapter 6)
+
+## **8. In this exercise, we will generate simulated data, and will then use this data to perform best subset selection.**
+### **(a) Use the `rnorm()` function to generate a predictor `X` of length `n = 100`, as well as a noise vector \(\epsilon\) of length `n = 100`.**
+
+```{r}
+set.seed(1)
+n <- 100
+X <- rnorm(n)
+e <- rnorm(n)
+```
+
+### **(b) Generate a response vector `Y` of length `n = 100` according to the model:**
+
+\[
+Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \epsilon
+\]
+
+where \(\beta_0, \beta_1, \beta_2\), and \(\beta_3\) are constants of your choice.
+
+```{r}
+# Set the true coefficients
+beta0 <- 2
+beta1 <- -5
+beta2 <- 8
+beta3 <- 0.9
+
+# Generate Y using the specified formula:
+Y <- beta0 + beta1 * X + beta2 * X^2 + beta3 * X^3 + e
+
+```
+
+
+### **(c) Use the `regsubsets()` function to perform best subset selection in order to choose the best model containing the predictors \(X, X^2, \ldots, X^{10}\).**
+
+What is the best model obtained according to Cp**, BIC, and adjusted \(R^2\)? Show some plots to provide evidence for your answer, and report the coefficients of the best model obtained.
+
+> **Note:** You will need to use the `data.frame()` function to create a single data set containing both `X` and `Y`.
+
+```{r}
+# Create a data frame with predictors up to the 10th power
+data <- data.frame(
+  Y = Y,
+  X = X,
+  X2 = X^2,
+  X3 = X^3,
+  X4 = X^4,
+  X5 = X^5,
+  X6 = X^6,
+  X7 = X^7,
+  X8 = X^8,
+  X9 = X^9,
+  X10 = X^10
+)
+
+# Fit best subset selection with up to 10 predictors
+regfit.full <- regsubsets(Y ~ ., data = data, nvmax = 10)
+reg.summary <- summary(regfit.full)
+
+
+```
+
+
+```{r, fig.width=10, fig.height=5 }
+par(mfrow = c(1, 3))
+
+plot(reg.summary$cp, xlab = "Number of Variables", 
+     ylab = "Cp", type = "l", main = "Cp")
+points(which.min(reg.summary$cp), 
+       reg.summary$cp[which.min(reg.summary$cp)], 
+       col = my_palette[1], cex = 2, pch = 20)
+
+plot(reg.summary$bic, xlab = "Number of Variables", 
+     ylab = "BIC", type = "l", main = "BIC")
+points(which.min(reg.summary$bic),
+       reg.summary$bic[which.min(reg.summary$bic)], 
+       col = my_palette[1], cex = 2, pch = 20)
+
+plot(reg.summary$adjr2, xlab = "Number of Variables", 
+     ylab = "Adjusted R^2", type = "l", main = "Adjusted R^2")
+points(which.max(reg.summary$adjr2), 
+       reg.summary$adjr2[which.max(reg.summary$adjr2)],
+       col = my_palette[1], cex = 2, pch = 20)
+```
+
+```{r}
+# Best model according to Cp
+cat("Best model by Cp:\n")
+print(coef(regfit.full, which.min(reg.summary$cp)))
+
+# Best model according to BIC
+cat("\nBest model by BIC:\n")
+print(coef(regfit.full, which.min(reg.summary$bic)))
+
+# Best model according to Adjusted R^2
+cat("\nBest model by Adjusted R^2:\n")
+print(coef(regfit.full, which.max(reg.summary$adjr2)))
+
+
+```
+
+```{r}
+# Print the variable inclusion matrix
+reg.summary$which
+
+```
+
+
+```{r}
+# Combine model metrics into a summary data frame
+model_metrics <- data.frame(
+  NumVars = 1:10,
+  RSS = reg.summary$rss,
+  Cp = reg.summary$cp,
+  BIC = reg.summary$bic,
+  AdjR2 = reg.summary$adjr2
+)
+
+# Show the table
+kable(model_metrics, caption = "Best Subset Selection Summary Metrics")
+
+
+```
+
+
+
+### **(d)Repeat (c), using forward stepwise selection and also using backwards stepwise selection. How does your answer compare to the results in (c)? **
+#### **Forward Stepwise Selection** 
+<br>
+```{r}
+regfit.fwd <- regsubsets(Y ~ ., data = data, nvmax = 10, method = "forward")
+reg.summary.fwd <- summary(regfit.fwd)
+
+```
+<br>
+
+```{r, fig.width=10, fig.height=5 }
+# Plots for Forward Stepwise Selection
+par(mfrow = c(1, 3))
+plot(reg.summary.fwd$cp, xlab = "Number of Variables", 
+     ylab = "Cp", type = "l", main = "Forward Cp")
+points(which.min(reg.summary.fwd$cp), 
+       reg.summary.fwd$cp[which.min(reg.summary.fwd$cp)], 
+       col = my_palette[2], cex = 2, pch = 20)
+
+plot(reg.summary.fwd$bic, xlab = "Number of Variables", 
+     ylab = "BIC", type = "l", main = "Forward BIC")
+points(which.min(reg.summary.fwd$bic), 
+       reg.summary.fwd$bic[which.min(reg.summary.fwd$bic)], 
+       col = my_palette[2], cex = 2, pch = 20)
+
+plot(reg.summary.fwd$adjr2, xlab = "Number of Variables", 
+     ylab = "Adjusted R^2", type = "l", main = "Forward Adjusted R^2")
+points(which.max(reg.summary.fwd$adjr2), 
+       reg.summary.fwd$adjr2[which.max(reg.summary.fwd$adjr2)], 
+       col = my_palette[2], cex = 2, pch = 20)
+
+```
+
+```{r}
+# Forward stepwise summary table
+model_metrics_fwd <- data.frame(
+  NumVars = 1:10,
+  RSS = reg.summary.fwd$rss,
+  Cp = reg.summary.fwd$cp,
+  BIC = reg.summary.fwd$bic,
+  AdjR2 = reg.summary.fwd$adjr2
+)
+
+
+kable(model_metrics_fwd, caption = "Forward Stepwise Selection Summary Metrics")
+
+
+# Display best models
+cat("Forward selection - best model by Cp:", which.min(reg.summary.fwd$cp), "\n")
+cat("Forward selection - best model by BIC:", which.min(reg.summary.fwd$bic), "\n")
+cat("Forward selection - best model by Adjusted R^2:", which.max(reg.summary.fwd$adjr2), "\n")
+print(coef(regfit.fwd, which.max(reg.summary.fwd$adjr2)))
+```
+
+
+#### **Backward Stepwise Selection** 
+<br>
+```{r}
+regfit.bwd <- regsubsets(Y ~ ., data = data, nvmax = 10, method = "backward")
+reg.summary.bwd <- summary(regfit.bwd)
+```
+<br>
+```{r, fig.width=10, fig.height=5 }
+# Plots for Backward Stepwise Selection
+par(mfrow = c(1, 3))
+plot(reg.summary.bwd$cp, xlab = "Number of Variables",
+     ylab = "Cp", type = "l", main = "Backward Cp")
+points(which.min(reg.summary.bwd$cp), 
+       reg.summary.bwd$cp[which.min(reg.summary.bwd$cp)], 
+       col = my_palette[3], cex = 2, pch = 20)
+
+plot(reg.summary.bwd$bic, xlab = "Number of Variables",
+     ylab = "BIC", type = "l", main = "Backward BIC")
+points(which.min(reg.summary.bwd$bic), 
+       reg.summary.bwd$bic[which.min(reg.summary.bwd$bic)],
+       col = my_palette[3], cex = 2, pch = 20)
+
+plot(reg.summary.bwd$adjr2, xlab = "Number of Variables", 
+     ylab = "Adjusted R^2", type = "l", main = "Backward Adjusted R^2")
+points(which.max(reg.summary.bwd$adjr2), 
+       reg.summary.bwd$adjr2[which.max(reg.summary.bwd$adjr2)],
+       col = my_palette[3], cex = 2, pch = 20)
+
+```
+
+
+
+```{r}
+
+# Backward stepwise summary table
+model_metrics_bwd <- data.frame(
+  NumVars = 1:10,
+  RSS = reg.summary.bwd$rss,
+  Cp = reg.summary.bwd$cp,
+  BIC = reg.summary.bwd$bic,
+  AdjR2 = reg.summary.bwd$adjr2
+)
+
+kable(model_metrics_bwd, caption = "Backward Stepwise Selection Summary Metrics")
+
+
+# Display best models
+cat("Backward selection - best model by Cp:", which.min(reg.summary.bwd$cp), "\n")
+cat("Backward selection - best model by BIC:", which.min(reg.summary.bwd$bic), "\n")
+cat("Backward selection - best model by Adjusted R^2:", which.max(reg.summary.bwd$adjr2), "\n")
+
+print(coef(regfit.bwd, which.max(reg.summary.bwd$adjr2)))
+
+```
+
+**Analysis:**
+
+- All three methods (best subset, forward, and backward) select similar models, especially for **Adjusted R²**, which confirms model stability. The best model size (number of predictors) is the same across methods:
+  - **Cp** chooses a **4-variable** model.
+  - **BIC** prefers a **simpler 3-variable** model (due to stronger penalization).
+  - **Adjusted R²** favors **4-variable** models (with the highest goodness of fit).
+  
+```{r}
+comparison_table <- data.frame(
+  Method = c("Best Subset", "Forward", "Backward"),
+  Cp_Model = c("X, X2, X3, X5", "X, X2, X3, X5", "X, X2, X5, X7"),
+  BIC_Model = c("X, X2, X5", "X, X2, X5", "X, X2, X5"),
+  AdjR2_Model = c("X, X2, X3, X5", "X, X2, X3, X5", "X, X2, X5, X7")
+)
+
+kable(comparison_table, caption = "Comparison of Best Models by Selection Method")
+```
+> 💡 The only notable difference: **backward** selection includes **X⁷** instead of **X³** under Adjusted R², which may indicate minor instability when predictors are weakly correlated.
+
+- The consistency of **X**, **X²**, and **X⁵** across all methods tells us they carry strong signal.
+
+- Since the true model (in part b) includes **X**, **X²**, and **X³**, it's impressive that all methods identify at least **X, X²**, and often **X³**.
+
+- The addition of **X⁵** or **X⁷** may reflect mild overfitting, especially when using **Adjusted R²** instead of BIC.
+
+
+
+## Book: ISLR2 (Chapter 5)
+
+## **7. In Sections 5.3.2 and 5.3.3**, we saw that the `cv.glm()` function can be used in order to compute the **LOOCV** test error estimate. 
+
+Alternatively, one could compute those quantities using just the `glm()` and `predict.glm()` functions, along with a `for` loop. You will now take this approach in order to compute the LOOCV error for a simple logistic regression model on the Weekly data set.
+
+Recall that in the context of classification problems, the LOOCV error is given in Equation (5.4).
+
+### **(a) Fit a logistic regression model that predicts `Direction` using `Lag1` and `Lag2`.**
+
+```{r}
+data(Weekly)
+glm.fit <- glm(Direction ~ Lag1 + Lag2, data = Weekly, family = binomial)
+summary(glm.fit)
+```
+
+### **(b) Fit a logistic regression model that predicts Direction using `Lag1` and `Lag2` using all but the first observation. **
+```{r}
+glm.fit <- glm(Direction ~ Lag1 + Lag2, data = Weekly[-1, ], family = binomial)
+summary(glm.fit)
+```
+**Analysis:** In this instance only the first row is being excluded for the training and fittinf of the logistic regression on the remaining observations.
+
+### **(c) Use the model from (b) to predict the direction of the first observation.**
+
+You can do this by predicting that the first observation will go Up if  
+\[
+P(\text{Direction} = \text{"Up"} \mid \text{Lag1}, \text{Lag2}) > 0.5
+\]
+
+Was this observation correctly classified?
+```{r}
+predict(glm.fit, Weekly[1, ], type = "response") > 0.5
+Weekly$Direction[1]
+
+```
+**Analysis:** In this case the posterior probability that Direction was  Up for the first row. If it’s greater than 0.5, predict Up; otherwise, Down, if this were the case it would represent a misclassification.
+
+
+### **(d) Write a for loop from i = 1 to i= n, where n is the number of observations in the data set, that performs each of the following steps: **
+```{r}
+error <- rep(0, nrow(Weekly))
+
+for (i in 1:nrow(Weekly)) {
+  glm.fit <- glm(Direction ~ Lag1 + Lag2, data = Weekly[-i, ], family = "binomial")
+  prob <- predict(glm.fit, Weekly[i, ], type = "response")
+  pred <- prob > 0.5
+  actual <- Weekly[i, ]$Direction == "Up"
+  error[i] <- ifelse(pred != actual, 1, 0)
+}
+
+```
+### **(e) Take the average of the n numbers obtained in (d)iv in order to obtain the LOOCV estimate for the test error. Comment on the results. **
+
+```{r}
+mean(error)
+
+```
+
+**Analysis:** 
+The LOOCV test error estimate is approximately 45%, which is close to the chance level (50%). This suggests that `Lag1` and `Lag2` alone may not be strong predictors of market direction.
+While the model achieves a 55% accuracy rate, this performance is only marginally better than random guessing, indicating limited predictive reliability. <br>
+- The use of only Lag1 and Lag2 as predictors implies these features lack sufficient information to robustly classify `Direction`. <br>
+- This result also reflects the inherent difficulty in forecasting market movements using short-term lag features alone, which may not capture the complex dynamics of financial markets. <br>
+
+
+## **8. We will now perform cross-validation on a simulated data set. **
+### **(a)Generate a simulated data set as follows:** <br>
+> set.seed (1)  <br>
+ x <- rnorm (100)  <br> 
+ y <- x - 2 * x^2 + rnorm (100) <br>
+
+
+**In this data set, what is n and what is p? Write out the model used to generate the data in equation form. **
+
+We have a single predictor \(X\), and we draw \(X\) from a standard normal distribution with \(n = 100\) observations. The true data-generating model is 
+\[
+Y = X - 2X^2 + \varepsilon,
+\]
+where \(\varepsilon\) is noise (e.g. \(\varepsilon \sim N(0,1)\)).  
+In this context, \(n=100\) and \(p=2\) can be explained as follows: \(n=100\) is the sample size, and you can view \(p=2\) as counting the two components (\(X\) and \(X^2\)) that actually enter the true model.  
+
+```{r}
+set.seed(1)
+x <- rnorm(100)
+y <- x - 2*x^2 + rnorm(100)
+# Create a data frame called Data for use in later code:
+Data <- data.frame(x = x, y = y)
+```
+
+So \(n=100\), \(p=2\), and 
+\[
+Y_i = X_i - 2X_i^2 + \varepsilon_i.
+\]
+
+### **(b) Create a scatterplot of \(X\) against \(Y\).Comment on what you find.**  
+```{r, fig.width=10, fig.height=5 }
+plot(x, y, main = "Scatterplot of Simulated Data  (Seed=1)", col = my_palette[4], pch = 16,
+     xlab = "X", ylab = "Y")
+```
+
+**Analysis:** This scatterplot of \((x_i, y_i)\)  suggests that \(Y\) increases with \(X\) when \(X\) is near zero and then declines, matching the \(-2X^2\) curvature in the true model, which is represented as a parabolic relationship (opening downward) between \(X\) and \(Y\).  
+
+
+### **(c) Set a random seed, and then compute the LOOCV errors that result from fitting the following four models using least squares:**  
+i. \( Y = \beta_0 + \beta_1 X + \varepsilon \)  
+ii. \( Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \varepsilon \)  
+iii. \( Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \varepsilon \)  
+iv. \( Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \beta_4 X^4 + \varepsilon \)  
+
+Note you may find it helpful to use the data.frame() function to create a single data set containing both X and Y.
+
+```{r}
+# Define a helper function to compute the LOOCV error:
+loocv_err <- function(fit, data) {
+  cv.glm(data, fit, K = nrow(data))$delta[1]
+}
+
+# Fit the four models:
+fit1 <- glm(y ~ x, data = Data)
+fit2 <- glm(y ~ x + I(x^2), data = Data)
+fit3 <- glm(y ~ x + I(x^2) + I(x^3), data = Data)
+fit4 <- glm(y ~ x + I(x^2) + I(x^3) + I(x^4), data = Data)
+
+# Compute LOOCV errors:
+err1 <- loocv_err(fit1, Data)
+err2 <- loocv_err(fit2, Data)
+err3 <- loocv_err(fit3, Data)
+err4 <- loocv_err(fit4, Data)
+
+loocv_results <- c(Model1 = err1, Model2 = err2, Model3 = err3, Model4 = err4)
+print(loocv_results)
+```
+
+We can observe that the model with the quadratic term (Model 2) has the smallest LOOCV error. The cubic and quartic terms do not help reduce average prediction error further (and sometimes can make it slightly worse, depending on the random seed).
+
+
+### **(d)Repeat (c) using another random seed; are the results the same?**  
+
+```{r}
+set.seed(2)
+x_new <- rnorm(100)
+y_new <- x_new - 2*x_new^2 + rnorm(100)
+Data_new <- data.frame(x = x_new, y = y_new)
+```
+
+```{r, fig.width=10, fig.height=5 }
+
+# Plot the new data:
+plot(x_new, y_new, main = "Scatterplot of Simulated Data (Seed=2)",
+     col = my_palette[5], pch = 16, xlab = "X", ylab = "Y")
+```
+
+```{r}
+# Fit the models using the new data:
+fit1_new <- glm(y ~ x, data = Data_new)
+fit2_new <- glm(y ~ x + I(x^2), data = Data_new)
+fit3_new <- glm(y ~ x + I(x^2) + I(x^3), data = Data_new)
+fit4_new <- glm(y ~ x + I(x^2) + I(x^3) + I(x^4), data = Data_new)
+
+# Compute LOOCV errors for the new data:
+err1_new <- loocv_err(fit1_new, Data_new)
+err2_new <- loocv_err(fit2_new, Data_new)
+err3_new <- loocv_err(fit3_new, Data_new)
+err4_new <- loocv_err(fit4_new, Data_new)
+
+loocv_results_new <- c(Model1 = err1_new, Model2 = err2_new, Model3 = err3_new, Model4 = err4_new)
+print(loocv_results_new)
+
+```
+
+
+Yes, the LOOCV error estimates for each polynomial degree is similar. That is because LOOCV uses each observation exactly once in the test fold, so there is no random split. Hence, changing the seed before running LOOCV will not affect the final LOOCV error estimates.
+
+
+### **(e) Which model has the smallest LOOCV error, and does that match expectations?**  
+
+The degree-2 polynomial model (i.e., including \(X\) and \(X^2\)) typically gives the smallest LOOCV error. That is exactly what we would expect, since the true data-generating function is \(Y = X - 2X^2 + \varepsilon\). Higher-order terms do not help, and a simple linear model leaves out the curvature and fares worse.
+
+
+### **(f) Comment on statistical significance of the fitted coefficients**  
+
+```{r}
+summary(fit2)
+summary(fit3)
+summary(fit4)
+```
+**Analysis:**
+**Model 2 (Quadratic):**  
+Both the linear term \(\hat{\beta}_1\) and the quadratic term \(\hat{\beta}_2\) are highly statistically significant.  
+- The model’s performance aligns with our expectations based on the true data-generating process:  
+  \[
+  Y = X - 2X^2 + \varepsilon
+  \]
+- The p-values for both \(X\) and \(X^2\) are extremely small, indicating strong evidence that both predictors contribute to explaining \(Y\).
+
+**Model 3 (Includes Cubic Term):**  
+The additional cubic term \(\hat{\beta}_3\) has a high p-value (\(p = 0.784\)), suggesting it lacks statistical significance.  
+- \(\hat{\beta}_1\) and \(\hat{\beta}_2\) remain significant.  
+- The inclusion of the cubic term doesn’t improve the model in a meaningful way and may lead to overfitting.
+
+**Model 4 (Includes Up to Quartic Term):**  
+Similarly, the cubic \(\hat{\beta}_3\) and quartic \(\hat{\beta}_4\) terms both have high p-values (0.892 and 0.193, respectively), indicating their statistical insignificance.  
+- Again, \(\hat{\beta}_1\) and \(\hat{\beta}_2\) remain significant.  
+- These higher-order terms add complexity without predictive gain, aligning with the LOOCV results that showed no reduction in error from their inclusion.
+
+**In Summary:**  
+The quadratic model (**Model 2**) is the most parsimonious and statistically justified.  
+- Higher-order terms (cubic and quartic) offer no statistical or predictive advantage.  
+- This confirms the results from both statistical inference (p-values) and model selection via LOOCV, reinforcing the importance of avoiding overfitting with unnecessarily complex models.
+
+
+## Book: ISLR2 (Chapter 4)
+## **9. This question involves the use of multiple linear regression on the Auto data set.**
+
+### **(a)Produce a scatterplot matrix which includes all of the variables in the data set. **
+
+```{r, include=FALSE}
+# Load the Auto data set
+data("Auto")
+# Inspect the first few rows
+head(Auto)
+Auto_numeric <- subset(Auto, select = -name)
+
+```
+
+```{r, fig.width=10, fig.height=10 }
+# Scatterplot matrix
+pairs(Auto_numeric, 
+      main = "Simple Scatterplot Matrix (Base R)", 
+      col = my_palette[8])
+
+
+ggpairs(Auto_numeric,
+        lower = list(continuous = wrap("points", col = my_palette[7])),
+        diag = list(continuous = wrap("densityDiag")),
+        upper = list(continuous = wrap("cor", size = 4))) +
+  ggtitle("Scatterplot Matrix for Auto Data with correlation values") +
+  theme(
+    plot.title = element_text(color = "black", size = 14, face = "bold"),
+    axis.text = element_text(color = "black"),
+    strip.text = element_text(color = "black")
+  )
+
+```
+
+### **(b)Compute the matrix of correlations between the variables using the function cor(). You will need to exclude the name variable, cor() which is qualitative.**
+```{r}
+# Compute the correlation matrix, excluding the qualitative 'name' variable
+cor_matrix <- cor(subset(Auto, select = -name))
+print(cor_matrix)
+```
+### **(c) Use the lm() function to perform a multiple linear regression with mpg as the response and all other variables except name as the predictors. Use the `summary()` function to print the results. Comment on the output. For instance:**
+
+### **i. Is there a relationship between the predictors and the response?**
+
+Yes — the model shows a strong relationship between the predictors and `mpg`.  The **F-statistic is 252.4** on 7 and 384 degrees of freedom, with a **p-value < 2.2e-16**, indicating that at least one predictor is significantly related to `mpg`. The **R² = 0.8215**, and **Adjusted R² = 0.8182**, meaning **~82% of the variance** in `mpg` is explained by the model.
+
+### **ii. Which predictors appear to have a statistically significant relationship with mpg?**
+
+From the summary output, predictors with **Pr(>|t|) < 0.05** are considered significant.
+
+**Statistically significant predictors:**
+- `displacement` (p = 0.00844) <br>
+- `weight` (p < 2e-16) <br>
+- `year` (p < 2e-16) <br>
+- `origin` (p ≈ 4.67e-07) <br>
+- `(Intercept)` (p = 0.00024) <br>
+
+**Not significant (p > 0.05):**
+- `cylinders` (p = 0.12780) <br>
+- `horsepower` (p = 0.21963) <br>
+- `acceleration` (p = 0.41548) <br>
+
+Thus, **weight**, **year**, **displacement**, and **origin** are the most important predictors of `mpg`.
+
+
+### **iii. What does the coefficient for the year variable suggest?**
+
+The coefficient for `year` is **+0.750773**, which is positive and highly significant (p < 2e-16).  
+This suggests that: For every one-year increase in model year, the `mpg` increases by approximately **0.75 units**, holding all other variables constant.
+
+- The model is statistically strong, but the diagnostic plots (from your earlier step) suggest non-linearity and heteroscedasticity — indicating room for model improvement.
+- `weight` is the strongest negative predictor of `mpg`, followed by `displacement`.
+- `year` is a strong positive predictor, showing progress in fuel efficiency across model years.
+
+
+```{r}
+# Fit a multiple linear regression model with mpg as the response
+# and all predictors except 'name'
+model <- lm(mpg ~ . - name, data = Auto)
+summary(model)
+
+```
+### **(d)  Use the plot() function to produce diagnostic plots of the linear regression fit. Comment on any problems you see with the fit. Do the residual plots suggest any unusually large outliers? Does the leverage plot identify any observations with unusually high leverage?**
+
+```{r, fig.width=10, fig.height=10 }
+# Set up a 2x2 plotting layout for diagnostics
+par(mfrow = c(2, 2))
+plot(model)
+
+```
+**Analysis:** 
+<br>
+**1.Residuals vs Fitted:** The residuals exhibit a funnel shape, widening as fitted values increase. This pattern suggests both non-linearity and heteroscedasticity — meaning the variance of the errors is not constant, violating a key assumption of linear regression. A transformation of the response or predictors may improve the model fit. <br>
+
+**2.Normal Q-Q Plot:** The residuals deviate from the diagonal line at both tails, indicating a departure from normality, especially for extreme values. A few observations lie far outside the expected range, suggesting the presence of outliers that may affect inference.<br>
+
+**3.Scale-Location Plot:** The increasing spread of standardized residuals with fitted values confirms the presence of heteroscedasticity, reinforcing the earlier observation from the Residuals vs Fitted plot. The error variance grows with the predicted mpg, which suggests a transformation (e.g., log or sqrt) might help stabilize variance.<br>
+
+**4.Residuals vs Leverage Plot:** Several points exhibit high leverage (e.g., observation 14), and a few fall outside Cook’s distance lines, indicating they may be influential observations. These points have a disproportionate effect on the regression coefficients and should be investigated further, possibly considered for sensitivity analysis.<br>
+	
+
+### **(e) Use the * and : symbols to fit linear regression models with interaction effects. Do any interactions appear to be statistically significant? **
+```{r}
+model_inter <- lm(mpg ~ . + displacement:weight, data = Auto_numeric)
+summary(model_inter)
+
+```
+**Analysis:** 
+<br>
+
+**Significant predictors:**  <br>
+displacement (p < 0.001) <br>
+horsepower (p = 0.008) <br>
+weight (p < 0.001) <br>
+year (p < 0.001) <br>
+origin (p = 0.033) <br>
+
+**displacement and weight** are both highly significant, with negative coefficients, indicating that, holding other variables constant, increases in these variables are associated with decreases in mpg.<br>
+**horsepower** also shows a negative and statistically significant relationship with mpg, suggesting more powerful engines consume more fuel.<br>
+**year** has a positive and significant coefficient, implying that newer cars tend to be more fuel efficient.<br>
+**origin** is significant at the 5% level, indicating regional differences in fuel efficiency after accounting for other features.<br>
+
+**Interaction Effect**
+<br>
+	**displacement:weigh** (p < 0.001) is strongly significant (p < 0.001), suggesting that the effect of displacement on mpg depends on the weight of the car.<br>
+	A positive coefficient for the interaction means that as weight increases, the negative impact of displacement on mpg becomes less severe — perhaps because displacement becomes more relevant for heavier vehicles that need more engine power.<br>
+
+**Model Fitt** <br>
+**R²** The model has a high R² of 0.858, indicating that about 85.8% of the variance in mpg is explained by the predictors and the interaction term.<br>
+**F-statistic** is highly significant (p < 2.2e-16), confirming that the model is a good fit overall.
+<br>
+
+Adding the interaction term displacement:weight meaningfully improves the model. It highlights that displacement and weight don’t operate independently in determining fuel efficiency — their combined effect provides additional explanatory power.
+
+### **(f) Try a few different transformations of the variables, such as log(X), √X, X2. Comment on your findings.**
+```{r}
+# Try log, sqrt, and squared versions of variables
+Auto_trans <- Auto_numeric %>%
+  mutate(log_weight = log(weight),
+         sqrt_weight = sqrt(weight),
+         weight_sq = weight^2)
+
+model_trans <- lm(mpg ~ cylinders + displacement + horsepower + acceleration +
+                    year + origin + log_weight + sqrt_weight + weight_sq, 
+                  data = Auto_trans)
+summary(model_trans)
+
+```
+
+
+**Analysis:** 
+
+**Multiple R²** = **0.8561**, **Adjusted R²** = **0.8527** This is an improvement over the original model (which had Adj. R² = 0.8182), indicating that the transformed variables help explain more variation in mpg.
+
+**Significant Predictors in Transformed Model**
+- `displacement` (p = 0.04133) <br>
+- `horsepower` (p = 0.04449) <br>
+- `year` (p < 2e-16) <br>
+- `origin` (p = 0.00398) <br>
+- `weight_sq` (p = 0.01767) <br>
+
+- **`weight_sq`** is statistically significant — capturing non-linear effects of weight on mpg.
+- **`log_weight`** and **`sqrt_weight`** are not individually significant, but likely contribute to the model's explanatory power through nonlinear flexibility.
+- **Year** remains the most important positive predictor, reaffirming that newer cars are more fuel efficient.
+
+If we including multiple transformations of the same variable (`weight`) can introduce multicollinearity. Although the model's R² improves, this may inflate standard errors and make interpretation of individual coefficients difficult.
+
+**Conclusion**
+- Using transformations increases model fit and allows the capture of non-linear relationships between predictors (e.g., weight) and mpg.
+- Polynomial terms like `weight²` are valuable** for modeling curvature in the relationship.
+- The findings suggest to consider stepwise selection, VIF diagnostics, or plotting residuals to confirm assumptions are better met in this model.
+
+

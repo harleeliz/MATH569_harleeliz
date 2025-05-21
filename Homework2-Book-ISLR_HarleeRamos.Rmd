@@ -1,0 +1,773 @@
+---
+title: "Homework N#2 Statistical Learning (MATH-569)"
+author: "Harlee Ramos"
+date: "2025-02-25"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Book: ISLR2 (Chapter 3)
+
+
+#### **Load Libraries**
+```{r setup}
+# Load necessary libraries
+library(ISLR)
+library(ggplot2)
+library(dplyr)
+library(broom)
+library("ISLR2")
+```
+
+## **8. This question involves the use of simple linear regression on the Auto data set.**
+### **(a) Use the lm() function to perform a simple linear regression with mpg as the response and horsepower as the predictor. Use the summary() function to print the results. Comment on the output. For example:**
+#### **Load Data**
+```{r}
+# Load the Auto dataset
+data(Auto)
+```
+
+We perform a simple linear regression with `mpg` as the response variable and `horsepower` as the predictor.
+
+```{r}
+# Fit the linear model
+lm_fit <- lm(mpg ~ horsepower, data = Auto)
+
+# Display the summary
+summary(lm_fit)
+```
+
+### **i. Is there a relationship between the predictor (`horsepower`) and the response (`mpg`)?**
+Yes, there is a statistically significant relationship between `horsepower` and `mpg`. The p-value for the `horsepower` coefficient is **< 2.2e-16**, which is much smaller than the common significance level of **0.05**. This indicates that `horsepower` is significantly associated with `mpg`.
+
+### **ii. How strong is the relationship between the predictor and the response?**
+The **\( R^2 \) value** is **0.6059**, which means that approximately **61% of the variation in `mpg` can be explained by `horsepower`**. While this indicates a moderate to strong relationship, there is still some variability in `mpg` that is not explained by `horsepower` alone.
+
+### **iii. Is the relationship between the predictor and the response positive or negative?**
+The estimated coefficient for `horsepower` is **-0.157845**, which is negative. This suggests that there is an **inverse relationship** between `horsepower` and `mpg`—as `horsepower` increases, `mpg` decreases. This makes sense intuitively since higher-powered engines tend to consume more fuel.
+
+### **iv. What is the predicted `mpg` associated with a `horsepower` of 98?**
+Using the regression equation:
+
+\[\hat{\text{mpg}} = 39.935861 - 0.157845 \times \text{horsepower}\]
+
+Substituting `horsepower = 98`:
+
+\[\hat{\text{mpg}} = 39.935861 - (0.157845 \times 98)\]
+
+\[\hat{\text{mpg}} = 39.935861 - 15.47781 = 24.4\]
+
+So, the predicted `mpg` for a car with 98 `horsepower` is **24.46 mpg**.
+
+### **iv. What are the associated 95% confidence and prediction intervals?**
+To obtain the 95% confidence interval (CI) and prediction interval (PI) for `mpg` at `horsepower = 98`, we can use the `predict()` function in R:
+
+
+```{r}
+new_data <- data.frame(horsepower = 98)
+predict(lm_fit, newdata = new_data, interval = "confidence")
+##        fit      lwr      upr
+## 1 24.46708 23.97308 24.96108
+
+predict(lm_fit, newdata = new_data, interval = "prediction")
+##        fit      lwr      upr
+## 1 24.46708 14.8094 34.12476
+```
+
+#### **Analysis:**
+1. **Point Estimate (`fit`)**: The predicted `mpg` for a car with `horsepower = 98` is **24.47 mpg**.
+2. **95% Confidence Interval (23.97, 24.96)**: 
+   - This interval provides the range in which we expect the **true mean `mpg`** for all cars with `horsepower = 98` to lie.
+   - The narrow range suggests that the model estimates the mean fairly precisely.
+3. **95% Prediction Interval (14.81, 34.12)**: 
+   - This interval provides the range in which we expect the **`mpg` of an individual car** with `horsepower = 98` to fall.
+   - The much **wider range** reflects the natural variability in individual car performance beyond just `horsepower`.
+
+- The confidence interval considers only the **uncertainty in estimating the mean `mpg`**, so it is relatively narrow.
+- The prediction interval accounts for **both the uncertainty in estimating the mean and the natural variation among individual cars**, making it wider.
+
+
+### **(b) Plot the response and the predictor. Use the abline() function to display the least squares regression line.**
+
+```{r,  fig.width=10, fig.height=10}
+# Create scatter plot with regression line
+ggplot(Auto, aes(x = horsepower, y = mpg)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, col = "lightgrey") +
+  labs(title = "MPG vs Horsepower", x = "Horsepower", y = "Miles per Gallon (MPG)")
+```
+
+
+### **(c) Use the plot() function to produce diagnostic plots of the least squares regression fit. Comment on any problems you see with the fit.**
+
+```{r,  fig.width=10, fig.height=10}
+# Produce diagnostic plots
+par(mfrow = c(2, 2))
+plot(lm_fit)
+```
+
+#### **Analysis:**
+
+#### **1. Residuals vs. Fitted Plot (Top Left)**
+- **Purpose:** This plot helps detect non-linearity and unequal variance (heteroscedasticity).
+- **Observation:** The residuals do not appear randomly scattered around zero. Instead, there is a distinct **U-shaped pattern**, suggesting that a simple linear model is not adequately capturing the relationship. This indicates **non-linearity**, meaning that `mpg` does not have a simple linear relationship with `horsepower`. A **polynomial or another transformation** might improve the fit.
+
+#### **2. Normal Q-Q Plot (Top Right)**
+- **Purpose:** Checks if residuals are normally distributed.
+- **Observation:** Most points lie along the diagonal line, which suggests **approximate normality**. However, the slight deviation at the ends (tails) indicates the presence of **some outliers**. This is not a major concern but should be monitored.
+
+#### **3. Scale-Location Plot (Bottom Left)**
+- **Purpose:** Assesses homoscedasticity (constant variance of residuals).
+- **Observation:** The red trend line is not completely flat, and residuals appear to spread out more at higher fitted values. This suggests **some heteroscedasticity** (non-constant variance), meaning that variance increases with larger fitted values. This could be improved using **logarithmic or Box-Cox transformations**.
+
+#### **4. Residuals vs. Leverage Plot (Bottom Right)**
+- **Purpose:** Identifies high-leverage points that could influence the regression.
+- **Observation:** A few points have **high standardized residuals** (greater than 2 or less than -2), meaning they could be **outliers**. Some points, like **point 1170**, have relatively high leverage, meaning they could **disproportionately impact the model**. If these points strongly affect regression coefficients, we might consider robust regression techniques or transformations.
+
+---
+
+## **10 This question should be answered using the Carseats dataset.**
+
+### **(a) Fit a multiple regression model to predict Sales using Price, Urban, and US. **
+
+```{r}
+# Assign 'Sales' column from 'Carseats' dataset to the response variable y
+y <- Carseats$Sales
+
+# Create a binary variable 'x1' based on whether 'Urban' is 'Yes' or 'No'
+x1 <- ifelse(Carseats$Urban == 'Yes', 1, 0)
+
+# Create a binary variable 'x2' based on whether 'US' is 'Yes' or 'No'
+x2 <- ifelse(Carseats$US == 'Yes', 1, 0)
+
+# Assign the 'Price' column from 'Carseats' dataset to the predictor variable x3
+x3 <- Carseats$Price
+
+# Fit a linear regression model with 'y' as the response variable
+# and 'x1', 'x2', and 'x3' as the predictor variables
+model1 <- lm(y ~ x1 + x2 + x3)
+
+# Display a detailed summary of the model, including coefficients,
+# standard errors, and model statistics (R-squared, etc.)
+summary(model1)
+
+```
+
+### **(b) Provide an interpretation of each coefficient in the model. Be careful, some of the variables in the model are qualitative!**
+- **Intercept (13.04)**: This value represents the predicted sales when all the other variables (Price, Urban, and US) are set to zero.
+* **Urban (x₁)**: The coefficient for Urban is -0.022, indicating that living in an urban location has no significant impact on sales. The linear regression suggests that there is insufficient evidence to establish a relationship between the store’s location and the number of sales.
+- **US (x₂)**: The coefficient for US is 1.201, suggesting that stores located in the US tend to have approximately 1.201 more sales units compared to non-US stores, assuming all other variables remain constant. The regression model indicates that there is insufficient evidence to support a relationship between the store’s location and the number of sales. If a store is located in the US, sales increase by approximately 1201 units. 
+- **Price (x₃)** indicates a correlation between price and sales, as evidenced by the low p-value of the t-statistic. The coefficient indicates a negative relationship between price and sales: as price rises, sales fall. For every one-unit increase in price, sales decrease by 0.054 units, assuming all other variables remain constant.
+
+
+### **(c) Write out the model in equation form, being careful to handle the qualitative variables properly.**
+Sales = 13.04  -0.02(x₁)  + 1.20 (x₂) -0.05 (x₃)
+
+
+###  **(d) or which of the predictors can you reject the null hypothesis.  \[H_0: \beta_j = 0 \quad\]**
+We test the hypothesis:\[H_0: \beta_j = 0 \quad \text{(No Effect)}\]
+
+
+- **Urban** (x<sub>1</sub>): The p-value is 0.936, so we fail to reject H<sub>0</sub>: β<sub>j</sub> = 0. This means that Urban is not a significant predictor.
+- **US** (x<sub>2</sub>): The p-value is 4.86e-06, which allows us to reject H<sub>0</sub>: β<sub>j</sub> = 0. US is also a significant predictor.
+- **Price** (x<sub>3</sub>): The p-value is extremely small (&lt; 2e-16), indicating strong evidence to reject H<sub>0</sub>: β<sub>j</sub> = 0. Price is a significant predictor.
+
+
+### **(e) On the basis of your response to the previous question, fit a smaller model that only uses the predictors for which there is evidence of association with the outcome.**
+
+```{r}
+# Fit the reduced model excluding Urban
+model2 <- lm(Sales ~ Price + US, data = Carseats)
+
+# Summary of the reduced model
+summary(model2)
+```
+- Since Urban is not significant, the new model only includes Price and US:
+Model 2: Sales = 13.03  -0.02(x₁)  + 1.20 (x₂) -0.054 (x₃)
+
+
+### **(f) How well do the models in (a) and (e) fit the data?**
+Based on the RSE and \( R^2 \) of the linear regressions, they both fit the data similarly, with linear regression from (e) fitting the data slightly better.**
+
+#### **Model 1:**
+\[\text{lm}(Sales \sim Urban + US + Price)\]
+
+In this model, Sales is predicted using Price, Urban, and US, implying that the predictors Price, Urban, and US explain 23.35% of the variation. However, Urban was determined to be statistically insignificant with a p-value of 0.936, implying that it does not make a meaningful contribution to explaining sales. The model's low Adjusted \( R^2 \) indicates weak statistical significance.
+        
+#### **Model 2 (Reduced Model):**
+\[\text{lm}(Sales \sim Price + US)\]
+
+In this model, **Urban is removed due to its insignificance **, and sales are predicted using simply Price and US. The adjusted \( R^2 \) (0.2354 vs. 0.2335) shows that **deleting the non-significant predictor (Urban) resulted in a more efficient model**. The residual standard error is also slightly smaller, indicating that the simplified model fits the data just as well, if not better, with fewer predictors. The F-statistic has risen to 62.43 (from 41.52), demonstrating that the simplified model is more efficient and simpler while maintaining statistical significance.
+
+
+### **(g) Using the model from (e), obtain 95% confidence intervals for the coefficient(s).**
+```{r,  fig.width=10, fig.height=10}
+confint(model2)
+```
+
+### **(h) Is there evidence of outliers or high leverage observations in the model from (e)?**
+```{r,  fig.width=10, fig.height=10}
+plot(predict(model2), rstudent(model2))
+par(mfrow=c(2,2))
+plot(model2)
+```
+
+- All studentized residuals appear to be bounded by -3 and 3, indicating no potential outliers from the linear regression. However, a few observations significantly exceed (p+1)/n (0.0075567) on the leverage-statistic plot, suggesting that these points have high leverage.
+
+## **11. In this problem, we investigate the t-statistic for the null hypothesis \(H_0: \beta = 0\) in simple linear regression without an intercept**.
+
+We generate a predictor \( x \) and a response \( y \) as follows:
+
+```{r}
+set.seed(1)
+x <- rnorm(100)
+y <- 2 * x + rnorm(100)
+```
+
+### **(a) Perform a simple linear regression of  \( y \) onto \( x \), without an intercept. Report the coefficient estimate βˆ, the standard error of this coefficient estimate, and the t-statistic and p-value associated with the null hypothesis Ho : β = 0. Comment on these results. **
+
+```{r}
+lm_fit <- lm(y ~ x + 0)  # No intercept
+summary(lm_fit)
+```
+
+#### **Analysis:**
+- The estimated coefficient \( \hat{\beta} \) is close to **2**, as expected, since we generated \( y = 2x + \varepsilon \).
+- The **t-statistic** is high, indicating a significant difference from zero.
+- The **p-value** is very low, confirming that \( x \) is a statistically significant predictor of \( y \).
+- This means there is a **strong positive linear relationship** between \( x \) and \( y \).
+
+### **(b) Now perform a simple linear regression of  \( x \) onto \( y \) without an intercept, and report the coefficient estimate, its standard error, and the corresponding t-statistic and p-values associated with the null hypothesis Ho : β = 0. Comment on these results.** 
+Now, we **reverse the regression** and model \( x \) as a function of \( y \):
+
+```{r}
+lm_fit_reverse <- lm(x ~ y + 0)  # No intercept
+summary(lm_fit_reverse)
+```
+
+#### **Analysis:**
+
+- The estimated coefficient is much **lower** (approximately **0.37**) than in Part (a).
+- The t-statistic and p-value remain the **same** because they depend on the correlation between \( x \) and \( y \), which is unchanged.
+- This coefficient is lower because inverting the regression equation requires dividing by the variance ratio.
+
+
+### **(c) What is the relationship between the results obtained in (a) and (b)?**
+```{r,  fig.width=10, fig.height=5}
+par(mfrow=c(1,2))
+plot(y ~ x, main = "Regression of y on x")
+abline(lm_fit, col="lightblue", lwd=2)  # Use lm_fit instead of lm.fit1
+
+plot(x ~ y, main = "Regression of x on y")
+abline(lm_fit_reverse, col="yellow", lwd=2)  # Use lm_fit_reverse instead of lm.fit2
+
+```
+
+The relationship between the coefficient estimates in (a) and (b) 
+From the fact of switching the roles of the predictor \( x \) and the response \( y \) in a simple linear regression (without an intercept), the estimated coefficient in the reversed regression is the reciprocal of the coefficient from the original regression.
+
+Mathematically, if the estimated coefficient in (a) (regressing \( y \) on \( x \)) is:
+  
+  \[
+    \hat{\beta}_{yx} = \frac{\sum x_i y_i}{\sum x_i^2}
+    \]
+
+then the estimated coefficient in (b) (regressing \( x \) on \( y \)) is:
+  
+  \[
+    \hat{\beta}_{xy} = \frac{\sum x_i y_i}{\sum y_i^2} = \frac{1}{\hat{\beta}_{yx}}
+    \]
+
+Since the original regression in (a) yielded an estimate close to 2, the reversed regression in (b) should yield a coefficient close to:
+  
+  \[
+    \frac{1}{2} = 0.5
+    \]
+
+The coefficient in (b) is approximately **0.37**, which suggests that the variance of \( y \) is larger than expected relative to \( x \), affecting the estimate.
+
+Thus,  the model equation should be:
+  
+  \[
+    \hat{\beta}_{yx} = \frac{1}{\hat{\beta}_{xy}}
+    \] 
+
+This reciprocal relationship holds for simple linear regression **without an intercept**.
+
+### **(d) Deriving the t-Statistic for Regression Without an Intercept**
+
+We consider a **simple linear regression of \( Y \) onto \( X \) without an intercept**. The null hypothesis is:
+
+\[H_0: \beta = 0\]
+
+The t-statistic is computed as:
+
+\[t = \frac{\hat{\beta}}{\text{SE}(\hat{\beta})}\]
+
+where \( \hat{\beta} \) is the estimated coefficient, and \( \text{SE}(\hat{\beta}) \) is its standard error.
+
+#### Compute \( \hat{\beta} \)
+
+Since we are performing a regression **without an intercept**, the least squares estimate of \( \beta \) is given by:
+
+\[\hat{\beta} = \frac{\sum_{i=1}^{n} x_i y_i}{\sum_{i=1}^{n} x_i^2}\]
+
+#### Compute the Standard Error \( \text{SE}(\hat{\beta}) \)
+
+The standard error of \( \hat{\beta} \) is:
+
+\[\text{SE}(\hat{\beta}) = \sqrt{ \frac{\sum_{i=1}^{n} (y_i - x_i \hat{\beta})^2}{(n - 1) \sum_{i=1}^{n} x_i^2} }\]
+
+#### Express the t-Statistic
+
+Substituting \( \hat{\beta} \) into the formula for the t-statistic:
+
+\[t = \frac{\hat{\beta}}{\text{SE}(\hat{\beta})}\]
+
+which simplifies to:
+
+\[t = \frac{(\sqrt{n-1}) \sum_{i=1}^{n} x_i y_i}{\sqrt{(\sum_{i=1}^{n} x_i^2)(\sum_{i=1}^{n} y_i^2) - (\sum_{i=1}^{n} x_i y_i)^2}}\]
+
+####  Numerical Verification in R
+
+To verify this numerically in **R**, we implement the formula as follows:
+
+```{r}
+set.seed(1)
+n <- 100
+x <- rnorm(n)
+y <- 2 * x + rnorm(n)
+
+# Compute beta_hat
+beta_hat <- sum(x * y) / sum(x^2)
+
+# Compute SE(beta_hat)
+SE_beta_hat <- sqrt(sum((y - x * beta_hat)^2) / ((n - 1) * sum(x^2)))
+
+# Compute t-statistic
+t_stat <- beta_hat / SE_beta_hat
+
+# Alternative formula for t-statistic
+t_stat_alt <- (sqrt(n - 1) * sum(x * y)) / sqrt((sum(x^2) * sum(y^2)) - (sum(x * y))^2)
+
+# Display results
+cat("t-statistic:", t_stat, "\n")
+cat("Alternative t-statistic formula:", t_stat_alt, "\n")
+```
+
+
+Now, we repeat the experiment with a larger sample size (\( n = 10000 \)) to see if the relationship holds:
+
+```{r,  fig.width=10, fig.height=10}
+set.seed(1)
+x_large <- rnorm(10000)
+y_large <- 2 * x_large + rnorm(10000)
+
+lm_fit_large <- lm(y_large ~ x_large + 0)
+lm_fit_large_reverse <- lm(x_large ~ y_large + 0)
+
+summary(lm_fit_large)
+summary(lm_fit_large_reverse)
+```
+
+#### **Analysis:**
+
+- The coefficient estimates remain **consistent** with those in the smaller sample.
+- This reinforces that the relationship follows the mathematical identity \( \hat{\beta}_{yx} = 1 / \hat{\beta}_{xy} \).
+
+### **(e): Considering a Different Relationship**
+
+Now, we modify the relationship by introducing a different coefficient:
+
+```{r}
+y_modified <- 5 * x + rnorm(100)
+
+lm_fit_modified <- lm(y_modified ~ x + 0)
+summary(lm_fit_modified)
+```
+
+#### **Analysis:**
+- The estimated coefficient is now **approximately 5**, confirming the new linear relationship.
+- The t-statistic remains significant, validating the predictor’s strength.
+
+
+## **13. In this exercise you will create some simulated data and will fit simple linear regression models to it. Make sure to use `set.seed(1)` prior to starting part (a) to ensure consistent results.**
+
+### **(a) Using the `rnorm()` function, create a vector, `x`, containing 100 observations drawn from a $N(0, 1)$ distribution. This represents a feature, $X$.**
+
+```{r generate-data}
+# Ensuring reproducibility
+set.seed(1)  
+## Simulating Data
+x <- rnorm(100, mean = 0, sd = 1)  # Generate 100 observations from N(0,1)
+```
+
+### **(b) Using the `rnorm()` function, create a vector, `eps`, containing 100 observations drawn from a $N(0, 0.25)$ distribution---a normal distribution with mean zero and variance 0.25.**
+
+```{r}
+eps <- rnorm(100, mean = 0, sd = sqrt(0.25))  # Generate noise from N(0, 0.25)
+```
+
+### **(c) Using x and `eps`, generate a vector y according to the model $$Y = -1 + 0.5X + \epsilon$$ . What is the length of the vector `y`? What are the values of $\beta_0$ and $\beta_1$ in this linear model?**
+```{r}
+y <- -1 + 0.5 * x + eps  # Generate response variable based on given model
+# Verify lengths
+length(y)
+```
+
+###  **(d) Create a scatterplot displaying the relationship between x and y. Comment on what you observe.**
+#### **Scatterplot of X vs Y**
+```{r,  fig.width=10, fig.height=5}
+ggplot(data = data.frame(x, y), aes(x, y)) +
+  geom_point(color = "red", alpha = 0.5) +
+  labs(title = "Scatterplot of x vs y", x = "x", y = "y") +
+  theme_minimal()
+```
+- The scatterplot visually represents a **linear relationship with some variability**.
+- The points generally follow an increasing trend, suggesting a positive slope of 0.5. However, deviations from the expected linear trend indicate the influence of noise (ϵ) in the data. Some observations deviate more significantly from the central trend.
+
+
+### **(e) Fit a least squares linear model to predict `y` using `x`. Comment on the model obtained. How do $\hat\beta_0$ and $\hat\beta_1$ compare to $\beta_0$ and $\beta_1$?**
+
+#### Fitting Linear Model
+```{r fit-model}
+lm_fit <- lm(y ~ x)
+summary(lm_fit)
+```
+	
+#### **Analysis:**
+- **The p-value** of the x variable is significant, pretty small, that confirms that x is a significant predictor of y.
+
+- The **t-statistic** for x is 9.273, which is very high, reinforcing the strong relationship.
+
+- The **\( R^2 \) value** (from summary(lm_fit)) should be relatively high, indicating a strong relationship between x and y, meaning that the x can explains approximately 46.7% of the variance in y. While this suggests a strong relationship, the remaining 53.3% of the variance is due to noise (ϵ).
+
+
+#### **Comparing Estimated Coefficients with True Values:**
+```{r compare-coefficients}
+true_beta0 <- -1
+true_beta1 <- 0.5
+estimated_beta0 <- coef(lm_fit)[1]
+estimated_beta1 <- coef(lm_fit)[2]
+
+cat("True β0:", true_beta0, "\n")
+cat("Estimated β0:", estimated_beta0, "\n")
+cat("True β1:", true_beta1, "\n")
+cat("Estimated β1:", estimated_beta1, "\n")
+
+#Confidence Intervals
+confint(lm_fit)
+```
+
+#### **Analysis:**
+- The estimated coefficients (\(\hat{\beta}_0, \hat{\beta}_1\)) are expected to be close to the true values \((-1, 0.5)\), but they may slightly vary due to random noise (\(\epsilon\)).
+
+### **(f) Display the least squares line on the scatterplot obtained in (d). Draw the population regression line on the plot, in a different color. Use the legend() command to create an appropriate legend.**
+
+#### **Visualizing the Regression Line** 
+
+```{r,  fig.width=10, fig.height=5}
+ggplot(data = data.frame(x, y), aes(x, y)) +
+  geom_point(color = "red", alpha = 0.5) +  # Scatterplot points
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +  # Estimated regression line
+  geom_abline(intercept = -1, slope = 0.5, color = "red", linetype = "solid") +  # True regression line
+  labs(title = "Regression Line: True vs Estimated Model", x = "X", y = "Y") +
+  theme_minimal() +
+  annotate("text", x = 1.5, y = -0.5, label = "True Line", color = "red", size = 4) +  # Label for true line
+  annotate("text", x = 1.5, y = -1, label = "Estimated Line", color = "black", size = 4)  # Label for estimated line
+```
+	
+#### **Analysis:**
+
+- In the scatterplot, the black dashed line represents the regression line, and the solid red line represents the true relation. This scatterplot depicts the expected linear trend, however, the small difference between the two lines reflects only slight variations due to random noise.
+
+
+### **(g) Now fit a polynomial regression model that predicts y using x and x2. Is there evidence that the quadratic term improves the model fit? Explain your answer.**
+#### **Polynomial Regression Model**
+```{r polynomial-regression}
+lm_poly <- lm(y ~ x + I(x^2))  # Fit polynomial regression model
+summary(lm_poly)  # Display summary statistics
+```
+#### **Analysis:**
+- **Intercept** = -0.97164  
+- **Linear term coefficient** (\( x \)) = **0.50858** (highly significant)
+- **Quadratic term coefficient** (\( x^2 \)) = **-0.05946** (not significant, \( p = 0.164 \))
+
+1. **Significance of the Quadratic Term \( x^2 \):**
+   - The p-value for \( x^2 \) is **0.164**, which is **not statistically significant** (\(\alpha = 0.05\)).
+   - This means there is **no strong evidence** that adding \( x^2 \) improves the model. 
+   This is quantified by the following anova test between two models which fails to reject the null hypothesis of two models being different. Also the p-value of x^2^ coefficient is greater than 0.5 indicating its statistical insignificance.
+
+```{r}
+anova(lm_fit, lm_poly)
+```
+- The **p-value is small** (\( < 0.05 \)), it means the **quadratic model provides a significantly better fit**.
+
+2. **Comparison of Model Fit:**
+   - **\( R^2 \) for linear model**: **0.4674**  
+   - **\( R^2 \) for quadratic model**: **0.4779**  
+   - **Adjusted \( R^2 \) for linear model**: **0.4619**  
+   - **Adjusted \( R^2 \) for quadratic model**: **0.4672**  
+
+ Which suggest that he increase in \( R^2 \) is minimal (~1%), and **Adjusted \( R^2 \) remains nearly the same**, indicating that adding \( x^2 \) does **not substantially improve** the model.
+
+3. **Residual Standard Error (RSE):**
+   - **Linear Model RSE**: **0.4814**  
+   - **Quadratic Model RSE**: **0.4790**  
+   - The slight reduction in RSE is **not substantial enough** to justify adding \( x^2 \).
+
+#### **Final Verdict:**
+- **The best model remains the simple linear regression** (\( y \sim x \)) without the quadratic term.
+- **Adding \( x^2 \) does not provide any statistically significant improvement.**
+- **For practical modeling, the quadratic term should be excluded** to keep the model simpler.
+
+### **(h) Repeat (a)-(f) after modifying the data generation process in such a way that there is less noise in the data. The model (3.39) should remain the same. You can do this by decreasing the variance of the normal distribution used to generate the error term in (b). Describe your results.**
+ 
+#### **Generating Data with Lower Noise**
+```{r}
+set.seed(1)   # Ensuring reproducibility
+## Simulating Data
+x <- rnorm(100, mean = 0, sd = 1)  # Generate 100 observations from N(0,1)
+eps_less_noise <- rnorm(100, mean = 0, sd = sqrt(0.1))  # Reduced noise (variance = 0.1)
+y_less_noise <- -1 + 0.5 * x + eps_less_noise  # Generate response variable
+length(y_less_noise) # Verify lengths
+```
+
+#### **Scatterplot of \( X \) vs \( Y \) (Lower Noise)**
+```{r,  fig.width=10, fig.height=5}
+ggplot(data = data.frame(x, y_less_noise), aes(x, y_less_noise)) +
+  geom_point(color = "blue", alpha = 0.5) +
+  labs(title = "Scatterplot of x vs y (Reduced Noise)", x = "x", y = "y") +
+  theme_minimal()
+```
+
+#### **Fitting Linear Model with Reduced Noise**
+```{r}
+lm_less_noise <- lm(y_less_noise ~ x)
+summary(lm_less_noise)
+```
+#### **Comparing Estimated Coefficients with True Values**
+```{r}
+true_beta0 <- -1
+true_beta1 <- 0.5
+estimated_beta0 <- coef(lm_less_noise)[1]
+estimated_beta1 <- coef(lm_less_noise)[2]
+
+cat("True β0:", true_beta0, "\n")
+cat("Estimated β0:", estimated_beta0, "\n")
+cat("True β1:", true_beta1, "\n")
+cat("Estimated β1:", estimated_beta1, "\n")
+
+# Confidence Intervals
+confint(lm_less_noise)
+```
+#### **Visualizing the Regression Line**
+```{r,  fig.width=10, fig.height=5}
+ggplot(data = data.frame(x, y_less_noise), aes(x, y_less_noise)) +
+  geom_point(color = "blue", alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +  # Estimated line
+  geom_abline(intercept = -1, slope = 0.5, color = "blue", linetype = "solid") +  # True regression line
+  labs(title = "Regression Line: True vs Estimated Model (Reduced Noise)", x = "X", y = "Y") +
+  theme_minimal() +
+  annotate("text", x = 1.5, y = -0.5, label = "True Line", color = "blue", size = 4) +
+  annotate("text", x = 1.5, y = -1, label = "Estimated Line", color = "black", size = 4)
+```
+
+#### **Analysis:**
+1. **Impact on Coefficient Estimation:**
+   - The **estimated coefficients are now closer** to the true values (-1, 0.5).
+   - Standard errors **decrease**, improving precision.
+
+2. **Impact on Model Fit:**
+   - **\( R^2 \)=0.687**: The model explains **more variance** in \( y \).
+   - **Lower residual standard error (RSE)=0.3044**, indicating less deviation from the true model.
+
+3. **Impact on Visualization:**
+   - The **scatterplot is less dispersed**, confirming reduced noise.
+   - The estimated regression line **follows the true line more closely**, minimizing variability in predictions.
+
+#### **Final Verdict on Question (h):**
+**The modifications correctly reflect lower noise variance.**  
+**Analysis and visualization confirm better model accuracy.**  
+**Confidence intervals and \( R^2 \) improvements highlight the benefit of reduced noise.**
+
+
+### **(i) Repeat (a)-(f) after modifying the data generation process in such a way that there is more noise in the data. The model (3.39) should remain the same. You can do this by increasing the variance of the normal distribution used to generate the error term  in (b). Describe your results.**
+
+
+#### **Modified Code for Higher Variance (\(\epsilon\))**
+#### **Generating Data with Higher Noise**
+```{r}
+# Ensuring reproducibility
+set.seed(1)  
+
+## Simulating Data
+x <- rnorm(100, mean = 0, sd = 1)  # Generate 100 observations from N(0,1)
+eps_more_noise <- rnorm(100, mean = 0, sd = sqrt(0.5))  # Increased noise (variance = 0.5)
+y_more_noise <- -1 + 0.5 * x + eps_more_noise  # Generate response variable
+
+# Verify lengths
+length(y_more_noise)
+```
+
+#### **Scatterplot of \( X \) vs \( Y \) (Increased Noise)**
+```{r,  fig.width=10, fig.height=5}
+ggplot(data = data.frame(x, y_more_noise), aes(x, y_more_noise)) +
+  geom_point(color = "red", alpha = 0.5) +
+  labs(title = "Scatterplot of x vs y (Increased Noise)", x = "x", y = "y") +
+  theme_minimal()
+```
+
+
+#### **Fitting Linear Model with Increased Noise**
+```{r}
+lm_more_noise <- lm(y_more_noise ~ x)
+summary(lm_more_noise)
+```
+
+#### **Comparing Estimated Coefficients with True Values**
+```{r}
+true_beta0 <- -1
+true_beta1 <- 0.5
+estimated_beta0 <- coef(lm_more_noise)[1]
+estimated_beta1 <- coef(lm_more_noise)[2]
+
+cat("True β0:", true_beta0, "\n")
+cat("Estimated β0:", estimated_beta0, "\n")
+cat("True β1:", true_beta1, "\n")
+cat("Estimated β1:", estimated_beta1, "\n")
+
+# Confidence Intervals
+confint(lm_more_noise)
+```
+
+#### **Visualizing the Regression Line**
+```{r,  fig.width=10, fig.height=5}
+ggplot(data = data.frame(x, y_more_noise), aes(x, y_more_noise)) +
+  geom_point(color = "orange", alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +  # Estimated line
+  geom_abline(intercept = -1, slope = 0.5, color = "orange", linetype = "solid") +  # True regression line
+  labs(title = "Regression Line: True vs Estimated Model (Increased Noise)", x = "X", y = "Y") +
+  theme_minimal() +
+  annotate("text", x = 1.5, y = -0.5, label = "True Line", color = "orange", size = 4) +
+  annotate("text", x = 1.5, y = -1, label = "Estimated Line", color = "black", size = 4)
+```
+
+
+#### **Analysis**
+1. **Impact on Coefficient Estimation:**
+   - The **estimated coefficients are less accurate** compared to the low-noise case.
+   - **Standard errors increase**, indicating lower precision.
+
+2. **Impact on Model Fit:**
+   - **Lower \( R^2 \)=0.3047**: The model explains **less variance** due to higher randomness in \( y \).
+   - **Higher residual standard error (RSE)=0.6808**, reflecting more variation from the true model.
+
+3. **Impact on Visualization:**
+   - The **scatterplot is more dispersed**, confirming increased noise.
+   - The estimated regression line **is not as tightly aligned** with the true regression line.
+
+#### **Final Verdict on Question (i):**
+**The modifications correctly reflect increased noise variance.**  
+**Analysis and visualization confirm reduced model accuracy.**  
+**Higher standard errors, lower \( R^2 \), and wider confidence intervals highlight the impact of increased noise.**  
+
+
+### **(j) What are the confidence intervals for β0 and β1 based on the original data set, the noisier data set, and the less noisy data set? Comment on your results.**
+```{r confidence-intervals}
+# Confidence Intervals for Different Models
+confint(lm_fit)         # Original noise (Variance = 0.25)
+confint(lm_less_noise)  # Reduced noise (Variance = 0.1)
+confint(lm_more_noise)  # Increased noise (Variance = 0.5)
+```
+
+- The results show that the least squares estimates of \(\beta_0\) and \(\beta_1\) are close to the true values, though subject to variability. The polynomial regression model suggests minimal improvement, implying a linear relationship. Modifying the noise variance affects the stability of coefficient estimates, with higher noise leading to increased variability. Confidence intervals also widen with increased noise, confirming the impact of data uncertainty on model reliability.
+
+#### **Analysis:**
+- **Wider confidence intervals** for the high-noise dataset.  
+- **Narrower confidence intervals** for the low-noise dataset.  
+- **Original dataset** should fall in between.
+
+
+#### **Interpretation of Confidence Intervals**
+- **Less noise → Narrower CIs:** The low-noise dataset has **tighter confidence intervals**, improving coefficient precision.
+- **More noise → Wider CIs:** Higher noise introduces **more variability**, leading to **greater uncertainty** in \(\beta_0\) and \(\beta_1\).
+- **Original dataset falls between:** This follows expectations, showing a **moderate** level of precision.
+
+ **Lower noise improves confidence in parameter estimates, while higher noise reduces precision.**  
+ **The trade-off:** Lower variance provides more **trustworthy** predictions, whereas **high variance models** introduce more **uncertainty** in predictions.  
+ 
+ 
+## Book: ESL (Chapter 3)
+
+3.2 
+
+```{r,  fig.width=10, fig.height=5}
+# Load necessary libraries
+library(ggplot2)
+library(MASS)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Number of data points
+n <- 10
+sigma <- sqrt(0.5)
+
+# Generate data
+x <- sort(runif(n, 0, 1))
+X <- cbind(1, x, x^2, x^3)
+
+# True coefficients
+beta <- c(1, 1, 2, 3)
+
+# Generate response variable with noise
+y_theory <- X %*% beta
+y_realized <- y_theory + rnorm(n, mean=0, sd=sigma)
+
+# Fit cubic polynomial regression
+model <- lm(y_realized ~ poly(x, 3, raw=TRUE))
+
+# Predictions
+x_pred <- seq(0, 1, length.out=100)
+X_pred <- cbind(1, x_pred, x_pred^2, x_pred^3)
+y_pred <- predict(model, newdata=data.frame(x=x_pred), interval="confidence")
+
+# Method 1: Standard Confidence Interval
+conf_int_1 <- predict(model, newdata=data.frame(x=x_pred), interval="confidence")
+
+# Method 2: Confidence Interval using Beta Confidence Set
+var_beta_hat <- vcov(model)
+conf_region <- matrix(NA, nrow=100, ncol=100)
+
+for (i in 1:100) {
+  a <- mvrnorm(1, mu=rep(0, 4), Sigma=var_beta_hat)
+  beta_new <- coef(model) + a
+  conf_region[,i] <- X_pred %*% beta_new
+}
+
+# Compute confidence bounds
+conf_lower <- apply(conf_region, 1, min)
+conf_upper <- apply(conf_region, 1, max)
+
+# Create a properly named data frame for plotting
+plot_df <- data.frame(
+  x_pred = x_pred,
+  y_pred = y_pred[,1], 
+  conf_lower1 = conf_int_1[,2], 
+  conf_upper1 = conf_int_1[,3], 
+  conf_lower2 = conf_lower, 
+  conf_upper2 = conf_upper
+)
+
+# Plot results with correctly referenced column names
+ggplot(plot_df, aes(x = x_pred)) +
+  geom_line(aes(y = y_pred), color = "blue", size = 1, linetype = "solid") +
+  geom_ribbon(aes(ymin = conf_lower1, ymax = conf_upper1), alpha = 0.2, fill = "green") +
+  geom_ribbon(aes(ymin = conf_lower2, ymax = conf_upper2), alpha = 0.2, fill = "red") +
+  labs(title = "Comparison of Two Confidence Interval Methods",
+       x = "X", y = "Predicted Y") +
+  theme_minimal()
+
+```

@@ -1,0 +1,100 @@
+---
+title: "Homework N#1 Statistical Learning (MATH-569) - Book: ESL (Chapter 2)"
+author: "Harlee Ramos"
+date: "2025-02-11"
+output:
+  html_document: default
+---
+
+### <span style="color:blue;">2.8 Compare the classification performance of linear regression and k–nearest neighbor classification on the zipcode data.</span> <br>
+In particular, consider only the 2’s and 3’s, and k= 1,3,5,7 and 15.Show both the training and test error for each choice. <br>
+The zipcode data are available from the book website www-stat.stanford.edu/ElemStatLearn
+```{r}
+# Load necessary libraries
+library(class) # For KNN
+library(MASS)  # For dataset manipulation
+
+# Load the datasets
+train_data <- read.table("zip.train")
+test_data <- read.table("zip.test")
+
+# Filter only digits 2 and 3
+train_data <- train_data[train_data$V1 %in% c(2, 3), ]
+test_data <- test_data[test_data$V1 %in% c(2, 3), ]
+
+# Extract features and labels
+X_train <- train_data[, -1]  # Features
+y_train <- train_data[, 1]   # Labels
+X_test <- test_data[, -1]    # Features
+y_test <- test_data[, 1]     # Labels
+
+# Convert labels to binary (2 -> 0, 3 -> 1)
+y_train_bin <- ifelse(y_train == 3, 1, 0)
+y_test_bin <- ifelse(y_test == 3, 1, 0)
+
+# Train Linear Regression Model
+lin_reg <- lm(y_train_bin ~ ., data = as.data.frame(X_train))
+y_train_pred <- predict(lin_reg, newdata = as.data.frame(X_train))
+y_test_pred <- predict(lin_reg, newdata = as.data.frame(X_test))
+
+# Convert predictions to binary classification (threshold = 0.5)
+y_train_pred_bin <- ifelse(y_train_pred >= 0.5, 1, 0)
+y_test_pred_bin <- ifelse(y_test_pred >= 0.5, 1, 0)
+
+# Compute errors for Linear Regression
+train_error_lin <- mean(y_train_pred_bin != y_train_bin)
+test_error_lin <- mean(y_test_pred_bin != y_test_bin)
+
+# KNN Classifier with different k values
+k_values <- c(1, 3, 5, 7, 15)
+train_errors_knn <- c()
+test_errors_knn <- c()
+
+for (k in k_values) {
+  # Train and predict with KNN
+  y_train_knn_pred <- knn(X_train, X_train, y_train_bin, k = k)
+  y_test_knn_pred <- knn(X_train, X_test, y_train_bin, k = k)
+  
+  # Compute error rates
+  train_errors_knn <- c(train_errors_knn, mean(y_train_knn_pred != y_train_bin))
+  test_errors_knn <- c(test_errors_knn, mean(y_test_knn_pred != y_test_bin))
+}
+
+# Combine results into a data frame
+results <- data.frame(
+  Method = c("Linear Regression", paste("KNN (k=", k_values, ")", sep="")),
+  Training_Error = c(train_error_lin, train_errors_knn),
+  Test_Error = c(test_error_lin, test_errors_knn)
+)
+
+# Display the results
+print(results)
+```
+
+<p style="color: blue;"> Analysis: </p> 
+#### **Linear Regression**
+- **Training Error:** Low at 0.58%, showing it fits the training data reasonably well.
+- **Test Error:** Higher at 4.12%, indicating poor generalization compared to KNN methods.
+- **Limitation:** Linear regression is not optimized for classification tasks, leading to suboptimal performance on this dataset.
+<br> 
+
+#### **KNN (k = 1)**
+- **Training Error:** Perfect (0%), as KNN with k=1 memorizes the training data.
+- **Test Error:** Lowest among all methods at 2.47%.
+- **Observation:** Captures fine-grained patterns but may slightly overfit, making it sensitive to noise.
+<br>
+
+#### **KNN (k = 3, 5, 7)**
+- **Training Error:** Slightly increases as k grows, reflecting a smoother decision boundary.
+- **Test Error:** Increases modestly, indicating a balance between overfitting and underfitting.
+- **Best Option:** k=3 or k=5 achieves a reasonable trade-off between accuracy and generalization.
+<br>
+
+#### **KNN (k = 15)**
+- **Training Error:** Highest at 0.94%, due to oversmoothing the decision boundary.
+- **Test Error:** The highest among KNN variants at 3.85%, indicating reduced sensitivity to details in the data.
+
+KNN with k=1 has the lowest test error (2.47%), meaning it performs the best for this task.<br>
+Linear regression performs poorly compared to KNN for classification, confirming that it's not ideal for digit classification.<br>
+Choosing k=3 or k=5 provides a balance between avoiding overfitting and maintaining accuracy.<br>
+
